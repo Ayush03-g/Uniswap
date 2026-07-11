@@ -40,8 +40,9 @@ const initializeTransporter = async () => {
   if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
     transporter = nodemailer.createTransport({
       host: 'smtp.gmail.com',
-      port: 465,
-      secure: true,
+      port: 587,
+      secure: false, // TLS
+      requireTLS: true,
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS
@@ -50,24 +51,9 @@ const initializeTransporter = async () => {
 
     try {
       await transporter.verify();
-      console.log('✅ SMTP Transporter verified successfully (Port 465, Secure).');
+      console.log('✅ SMTP Transporter verified successfully (Port 587, TLS).');
     } catch (err) {
-      console.error('⚠️ SMTP Port 465 failed, falling back to Port 587 (TLS). Error:', err.message);
-      transporter = nodemailer.createTransport({
-        host: 'smtp.gmail.com',
-        port: 587,
-        secure: false, // TLS
-        auth: {
-          user: process.env.EMAIL_USER,
-          pass: process.env.EMAIL_PASS
-        }
-      });
-      try {
-        await transporter.verify();
-        console.log('✅ SMTP Transporter verified successfully (Port 587, TLS).');
-      } catch (fallbackErr) {
-        console.error('❌ SMTP Transporter failed on both 465 and 587:', fallbackErr.stack || fallbackErr);
-      }
+      console.error('❌ SMTP Transporter failed on Port 587:', err.stack || err);
     }
   } else {
     // Fallback to auto-generated test account if no .env config

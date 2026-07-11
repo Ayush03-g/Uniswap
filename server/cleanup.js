@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 require('dotenv').config();
 
-mongoose.connect(process.env.MONGO_URI).then(async () => {
+mongoose.connect(process.env.MONGODB_URI).then(async () => {
   console.log('Connected to MongoDB');
   const Conversation = require('./models/Conversation');
   const Message = require('./models/Message');
