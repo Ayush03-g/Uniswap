@@ -65,9 +65,9 @@ app.use('/api/auth', authRoutes);
 require('dotenv').config();
 
 // MongoDB connection
-const MONGO_URI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/uniswap';
+const MONGODB_URI = process.env.MONGODB_URI || process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/uniswap';
 
-mongoose.connect(MONGO_URI)
+mongoose.connect(MONGODB_URI)
   .then(async () => {
     console.log('Connected to MongoDB');
     // Seed Admin Account
@@ -96,9 +96,14 @@ mongoose.connect(MONGO_URI)
     } catch (err) {
       console.error('Error seeding admin account:', err);
     }
+
+    server.listen(PORT, () => {
+      console.log(`Server running on port ${PORT}`);
+    });
   })
   .catch((err) => {
-    console.error('Failed to connect to MongoDB. Using in-memory fallback mode.');
+    console.error('❌ Failed to connect to MongoDB. Shutting down server.', err);
+    process.exit(1);
   });
 
 // Socket.IO configuration
@@ -175,6 +180,4 @@ if (process.env.NODE_ENV === 'production') {
   });
 }
 
-server.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+// server.listen has been moved to run only after MongoDB connects successfully
