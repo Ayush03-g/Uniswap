@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
@@ -68,8 +69,7 @@ const authRoutes = require('./routes/authRoutes');
 app.use('/api/products', productRoutes);
 app.use('/api/auth', authRoutes);
 
-require('dotenv').config();
-
+// dotenv config moved to top of file
 // MongoDB connection
 const MONGODB_URI = process.env.MONGODB_URI || process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/uniswap';
 
