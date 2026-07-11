@@ -24,10 +24,14 @@ if (process.env.NODE_ENV === 'production') {
   app.use(morgan('dev'));
 }
 
+console.log(`[BOOT] Configured CLIENT_URL for CORS: ${process.env.CLIENT_URL || 'Not Set'}`);
+
 // Middleware
 const allowedOrigins = [
   process.env.CLIENT_URL,
   "https://uniswap-wbva.vercel.app",
+  "https://uniswap-uni-swap.vercel.app",
+  "https://uniswap-oy5i-bice.vercel.app",
   "http://localhost:5173"
 ].filter(Boolean);
 
@@ -36,12 +40,14 @@ const corsOptions = {
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
+      console.warn(`[CORS Blocked] Origin not allowed: ${origin}`);
       callback(new Error('Not allowed by CORS'));
     }
   },
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
   credentials: true,
-  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "Accept"]
+  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "Accept"],
+  optionsSuccessStatus: 204
 };
 
 app.use(cors(corsOptions));
