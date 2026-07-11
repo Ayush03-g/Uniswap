@@ -43,6 +43,7 @@ const initializeTransporter = async () => {
       port: 587,
       secure: false, // TLS
       requireTLS: true,
+      family: 4, // Force IPv4 to bypass Render's IPv6 ENETUNREACH errors
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS
