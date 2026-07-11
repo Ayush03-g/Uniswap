@@ -5,7 +5,7 @@ export const getProductImage = (images?: string[]): string => {
     if (images[0].startsWith('http') || images[0].startsWith('data:')) {
       return images[0];
     }
-    return `http://localhost:5000${images[0]}`;
+    return `${import.meta.env.VITE_API_URL}${images[0]}`;
   }
   return DEFAULT_PRODUCT_IMAGE;
 };

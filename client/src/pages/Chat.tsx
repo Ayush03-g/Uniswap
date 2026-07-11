@@ -55,7 +55,7 @@ export function Chat({ isModal = false, modalConversationId = null, onClose }: {
       setShowScrollButton(false)
       
       if (activeConversationId) {
-        fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/chat/read/${activeConversationId}`, {
+        fetch(`${import.meta.env.VITE_API_URL || import.meta.env.VITE_API_URL}/api/chat/read/${activeConversationId}`, {
           method: "PUT",
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -77,7 +77,7 @@ export function Chat({ isModal = false, modalConversationId = null, onClose }: {
 
   useEffect(() => {
     if (!user) return
-    const newSocket = io(import.meta.env.VITE_API_URL || "http://localhost:5000", {
+    const newSocket = io(import.meta.env.VITE_API_URL, {
       query: { userId: user.id }
     })
     setSocket(newSocket)
@@ -113,7 +113,7 @@ export function Chat({ isModal = false, modalConversationId = null, onClose }: {
     
     try {
       setIsAtBottom(true)
-      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/chat`, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || import.meta.env.VITE_API_URL}/api/chat`, {
         method: "POST",
         headers: {
           'Content-Type': 'application/json',
