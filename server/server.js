@@ -25,34 +25,10 @@ if (process.env.NODE_ENV === 'production') {
   app.use(morgan('dev'));
 }
 
-console.log(`[BOOT] Configured CLIENT_URL for CORS: ${process.env.CLIENT_URL || 'Not Set'}`);
-
-// Middleware
-const allowedOrigins = [
-  process.env.CLIENT_URL,
-  "https://uniswap-wbva.vercel.app",
-  "https://uniswap-uni-swap.vercel.app",
-  "https://uniswap-oy5i-bice.vercel.app",
-  "http://localhost:5173"
-].filter(Boolean);
-
-const corsOptions = {
-  origin: function (origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      console.warn(`[CORS Blocked] Origin not allowed: ${origin}`);
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
-  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-  credentials: true,
-  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "Accept"],
-  optionsSuccessStatus: 204
-};
-
-app.use(cors(corsOptions));
-app.options('*', cors(corsOptions)); // Handle preflight requests
+app.use(cors({
+  origin: process.env.CLIENT_URL,
+  credentials: true
+}));
 
 app.use(express.json());
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
@@ -118,7 +94,10 @@ const { Server } = require('socket.io');
 
 const server = http.createServer(app);
 const io = new Server(server, {
-  cors: corsOptions
+  cors: {
+    origin: process.env.CLIENT_URL,
+    credentials: true
+  }
 });
 
 const connectedUsers = new Map();
