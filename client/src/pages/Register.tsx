@@ -99,7 +99,7 @@ export function Register() {
     <div className="flex-1 flex items-center justify-center p-4 min-h-screen">
       <Card className="w-full max-w-[420px] shadow-2xl border-white/10 bg-[#121212]/90 backdrop-blur-xl">
         <CardHeader className="space-y-1 text-center pb-4 pt-5">
-          <div className="mx-auto w-10 h-10 bg-gradient-to-br from-primary-500 to-primary-700 rounded-[10px] flex items-center justify-center mb-1 shadow-lg shadow-primary-500/20">
+          <div className="mx-auto w-11 h-11 bg-gradient-to-br from-primary-500 to-primary-700 rounded-full flex items-center justify-center mb-1 shadow-lg shadow-primary-500/20">
             <span className="text-white font-bold text-xl leading-none">U</span>
           </div>
           <CardTitle className="text-[28px] font-extrabold tracking-tight text-white">Create Account</CardTitle>

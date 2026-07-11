@@ -49,7 +49,7 @@ export function Login() {
     <div className="flex-1 flex items-center justify-center p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-2 text-center pb-8">
-          <div className="mx-auto w-12 h-12 bg-primary-600 rounded-2xl flex items-center justify-center mb-4">
+          <div className="mx-auto w-11 h-11 bg-primary-600 rounded-full flex items-center justify-center mb-4 shadow-md">
             <span className="text-white font-bold text-2xl leading-none">U</span>
           </div>
           <CardTitle className="text-2xl font-bold">Welcome back</CardTitle>

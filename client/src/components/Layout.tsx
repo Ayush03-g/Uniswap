@@ -146,7 +146,7 @@ export function Layout() {
     <>
       {transitionState.active && (
         <div className="fixed inset-0 z-[9999] bg-[rgba(0,0,0,0.75)] flex flex-col items-center justify-center text-white animate-in fade-in duration-300">
-          <div className="w-16 h-16 bg-gradient-to-tr from-[#6C3BFF] to-[#8B5CF6] rounded-2xl flex items-center justify-center animate-spin-slow mb-6 shadow-[0_0_30px_rgba(108,59,255,0.4)]" style={{ animationDuration: '3s' }}>
+          <div className="w-16 h-16 bg-primary-600 rounded-full flex items-center justify-center animate-spin-slow mb-6 shadow-lg shadow-primary-600/40" style={{ animationDuration: '3s' }}>
             <span className="text-white font-bold text-4xl leading-none" style={{ animation: 'pulse 2s infinite' }}>U</span>
           </div>
           <h2 className="text-2xl font-bold mb-2">{transitionState.message}</h2>
@@ -159,8 +159,8 @@ export function Layout() {
         <div className="container mx-auto px-4 h-16 flex items-center justify-between gap-4">
           <div className="flex items-center gap-6">
             <Link to="/" className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-primary-600 rounded-xl flex items-center justify-center">
-                <span className="text-white font-bold text-xl leading-none">U</span>
+              <div className="w-11 h-11 bg-primary-600 rounded-full flex items-center justify-center shadow-md">
+                <span className="text-white font-bold text-2xl leading-none">U</span>
               </div>
               <span className="font-bold text-xl tracking-tight hidden sm:block">UniSwap</span>
             </Link>
@@ -308,8 +308,8 @@ export function Layout() {
           <div className="flex flex-col md:flex-row flex-wrap lg:flex-nowrap justify-between items-start gap-12 lg:gap-[60px] mb-16">
             <div className="flex flex-col w-full md:w-[45%] lg:w-auto lg:flex-1 lg:max-w-[300px]">
               <div className="flex items-center gap-3 mb-6">
-                <div className="w-9 h-9 bg-gradient-to-tr from-[#6C3BFF] to-[#8B5CF6] rounded-xl flex items-center justify-center shadow-[0_0_15px_rgba(139,92,246,0.4)]">
-                  <span className="text-white font-bold text-xl leading-none">U</span>
+                <div className="w-11 h-11 bg-primary-600 rounded-full flex items-center justify-center shadow-[0_0_15px_rgba(139,92,246,0.4)]">
+                  <span className="text-white font-bold text-2xl leading-none">U</span>
                 </div>
                 <span className="font-bold text-2xl tracking-tight text-white">UniSwap</span>
               </div>
