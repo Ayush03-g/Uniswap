@@ -31,7 +31,7 @@ export function Landing() {
   }, [searchQuery])
 
   const { data: searchResults = [] } = useSearchProductsQuery(debouncedQuery, { skip: !debouncedQuery })
-  const { data: newArrivals = [] } = useGetNewArrivalsQuery()
+  const { data: newArrivals = [] } = useGetNewArrivalsQuery(undefined)
 
   const handleSearch = () => {
     if (searchQuery.trim()) {

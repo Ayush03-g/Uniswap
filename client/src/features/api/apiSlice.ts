@@ -20,7 +20,7 @@ export const apiSlice = createApi({
     }),
     getProductById: builder.query({
       query: (id) => `/products/${id}`,
-      providesTags: (result, error, id) => [{ type: 'Product', id }],
+      providesTags: (_result, _error, id) => [{ type: 'Product', id }],
     }),
     getNewArrivals: builder.query({
       query: () => '/products/new-arrivals',
@@ -334,7 +334,6 @@ export const {
   useClearNotificationsMutation,
   useDeleteNotificationMutation,
   useGetProfileDashboardQuery,
-  useGetUserStatsQuery,
   useUpdateProfileMutation,
   useCreateDirectChatMutation,
   useChatWithAIMutation,

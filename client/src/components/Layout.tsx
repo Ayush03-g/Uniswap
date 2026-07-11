@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react"
-import { Link, Outlet, useNavigate, useLocation } from "react-router-dom"
-import { Bell, ShoppingCart, LogOut, PlusCircle, Lock } from "lucide-react"
+import { Link, Outlet, useNavigate } from "react-router-dom"
+import { Bell, ShoppingCart, LogOut, PlusCircle, Lock, X } from "lucide-react"
 import { useSelector, useDispatch } from "react-redux"
 import { Button } from "./ui/Button"
 import type { RootState } from "../store"
@@ -18,9 +18,8 @@ export function Layout() {
   const [isSupportModalOpen, setIsSupportModalOpen] = useState(false)
   const dispatch = useDispatch()
   const navigate = useNavigate()
-  const location = useLocation()
   const { data: cartData } = useGetCartQuery(undefined, { skip: !isAuthenticated })
-  const { data: notificationsData, refetch: refetchNotifications } = useGetNotificationsQuery(undefined, { skip: !isAuthenticated })
+  const { data: notificationsData } = useGetNotificationsQuery(undefined, { skip: !isAuthenticated })
   const [markRead] = useMarkReadMutation()
   const [clearAllNotifications] = useClearNotificationsMutation()
   const [deleteSingleNotification] = useDeleteNotificationMutation()
@@ -40,9 +39,9 @@ export function Layout() {
   }, [notificationsData])
 
   useEffect(() => {
-    if (isAuthenticated && user?._id) {
+    if (isAuthenticated && user?.id) {
       socketRef.current = io("http://localhost:5000", {
-        query: { userId: user._id }
+        query: { userId: user.id }
       })
 
       socketRef.current.on("new_notification", (notification) => {
