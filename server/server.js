@@ -47,9 +47,14 @@ app.use('/api/auth', authRoutes);
 
 // dotenv config moved to top of file
 // MongoDB connection
-const MONGODB_URI = process.env.MONGODB_URI || process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/uniswap';
-
-mongoose.connect(MONGODB_URI)
+const dbUri = process.env.MONGODB_URI;
+if (dbUri) {
+  const maskedUri = dbUri.replace(/:([^:@]+)@/, ':****@');
+  console.log(`[BOOT] Attempting MongoDB Connection to: ${maskedUri}`);
+} else {
+  console.log(`[BOOT] Attempting MongoDB Connection but MONGODB_URI is undefined!`);
+}
+mongoose.connect(dbUri)
   .then(async () => {
     console.log('Connected to MongoDB');
     // Seed Admin Account
