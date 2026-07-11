@@ -25,11 +25,13 @@ if (process.env.NODE_ENV === 'production') {
 }
 
 // Middleware
-const allowedOrigins = process.env.NODE_ENV === 'production' 
-  ? [process.env.CLIENT_URL].filter(Boolean)
-  : [process.env.CLIENT_URL, 'http://localhost:5173'].filter(Boolean);
+const allowedOrigins = [
+  process.env.CLIENT_URL,
+  "https://uniswap-wbva.vercel.app",
+  "http://localhost:5173"
+].filter(Boolean);
 
-app.use(cors({
+const corsOptions = {
   origin: function (origin, callback) {
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
@@ -38,8 +40,13 @@ app.use(cors({
     }
   },
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-  credentials: true
-}));
+  credentials: true,
+  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "Accept"]
+};
+
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions)); // Handle preflight requests
+
 app.use(express.json());
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
@@ -100,17 +107,7 @@ const { Server } = require('socket.io');
 
 const server = http.createServer(app);
 const io = new Server(server, {
-  cors: {
-    origin: function (origin, callback) {
-      if (!origin || allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        callback(new Error('Not allowed by CORS'));
-      }
-    },
-    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-    credentials: true
-  }
+  cors: corsOptions
 });
 
 const connectedUsers = new Map();
