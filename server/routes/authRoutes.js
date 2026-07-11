@@ -33,29 +33,64 @@ const otpLimiter = (req, res, next) => {
   next();
 };
 
-// Helper to get email transporter
-const getTransporter = async () => {
+// Transporter initialization with fallback
+let transporter;
+
+const initializeTransporter = async () => {
   if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
-    return nodemailer.createTransport({
-      service: 'gmail', // Assuming Gmail as per instructions
+    transporter = nodemailer.createTransport({
+      host: 'smtp.gmail.com',
+      port: 465,
+      secure: true,
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS
       }
     });
-  }
-  // Fallback to auto-generated test account if no .env config
-  console.log('No SMTP config found. Generating Ethereal test account...');
-  const testAccount = await nodemailer.createTestAccount();
-  return nodemailer.createTransport({
-    host: testAccount.smtp.host,
-    port: testAccount.smtp.port,
-    secure: testAccount.smtp.secure,
-    auth: {
-      user: testAccount.user,
-      pass: testAccount.pass
+
+    try {
+      await transporter.verify();
+      console.log('✅ SMTP Transporter verified successfully (Port 465, Secure).');
+    } catch (err) {
+      console.error('⚠️ SMTP Port 465 failed, falling back to Port 587 (TLS). Error:', err.message);
+      transporter = nodemailer.createTransport({
+        host: 'smtp.gmail.com',
+        port: 587,
+        secure: false, // TLS
+        auth: {
+          user: process.env.EMAIL_USER,
+          pass: process.env.EMAIL_PASS
+        }
+      });
+      try {
+        await transporter.verify();
+        console.log('✅ SMTP Transporter verified successfully (Port 587, TLS).');
+      } catch (fallbackErr) {
+        console.error('❌ SMTP Transporter failed on both 465 and 587:', fallbackErr.stack || fallbackErr);
+      }
     }
-  });
+  } else {
+    // Fallback to auto-generated test account if no .env config
+    console.log('⚠️ No SMTP config found. Generating Ethereal test account...');
+    const testAccount = await nodemailer.createTestAccount();
+    transporter = nodemailer.createTransport({
+      host: testAccount.smtp.host,
+      port: testAccount.smtp.port,
+      secure: testAccount.smtp.secure,
+      auth: {
+        user: testAccount.user,
+        pass: testAccount.pass
+      }
+    });
+  }
+};
+
+// Initialize immediately
+initializeTransporter();
+
+const getTransporter = async () => {
+  if (!transporter) await initializeTransporter();
+  return transporter;
 };
 
 const getEmailTemplate = (otp, type) => {
@@ -126,7 +161,7 @@ router.post('/send-otp', otpLimiter, async (req, res) => {
     await newOtp.save();
     
     // Send Email
-    const transporter = await getTransporter();
+    const mailTransporter = await getTransporter();
     const mailOptions = {
       from: '"UniSwap Team" <noreply@uniswap.com>',
       to: email,
@@ -134,8 +169,16 @@ router.post('/send-otp', otpLimiter, async (req, res) => {
       html: getEmailTemplate(otp, type)
     };
 
-    const info = await transporter.sendMail(mailOptions);
-    const previewUrl = nodemailer.getTestMessageUrl(info);
+    let info;
+    let previewUrl;
+    try {
+      info = await mailTransporter.sendMail(mailOptions);
+      previewUrl = nodemailer.getTestMessageUrl(info);
+    } catch (emailError) {
+      console.error('\n❌ CRITICAL: Failed to send OTP email.');
+      console.error('Stack Trace:', emailError.stack || emailError);
+      return res.status(500).json({ message: 'Failed to send OTP email. Please verify SMTP configuration.' });
+    }
     
     console.log(`\n=========================================`);
     console.log(`[DEVELOPMENT] OTP Generated: ${otp}`);
@@ -149,8 +192,9 @@ router.post('/send-otp', otpLimiter, async (req, res) => {
       previewUrl: previewUrl || undefined
     });
   } catch (error) {
-    console.error('Send OTP error:', error);
-    res.status(500).json({ message: 'Server error during sending OTP.' });
+    console.error('\n❌ Server error in send-otp:');
+    console.error('Stack Trace:', error.stack || error);
+    res.status(500).json({ message: 'Server error in sending OTP' });
   }
 });
 
