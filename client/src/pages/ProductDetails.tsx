@@ -185,8 +185,12 @@ export function ProductDetails() {
   // Format initials
   const initials = product.sellerName ? product.sellerName.substring(0, 2).toUpperCase() : "AN"
 
-  // Base URL for images
-  const getImageUrl = (path: string) => `http://localhost:5000${path}`
+  // Helper for rendering full image URL for sharing
+  const getImageUrl = (path: string) => {
+    if (!path) return '';
+    if (path.startsWith('http')) return path;
+    return `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}${path}`;
+  }
   
   const hasImages = product.images && product.images.length > 0
   const coverImage = hasImages ? getImageUrl(product.images[selectedImage]) : ""

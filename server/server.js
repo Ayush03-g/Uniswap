@@ -3,11 +3,26 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
+const helmet = require('helmet');
+const compression = require('compression');
+const morgan = require('morgan');
 
 const productRoutes = require('./routes/productRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+
+// Security and Performance Middleware
+app.use(helmet());
+// Update helmet CSP to allow Cloudinary images if necessary, or just use defaults which usually allow external images
+app.use(helmet.crossOriginResourcePolicy({ policy: "cross-origin" }));
+
+app.use(compression());
+if (process.env.NODE_ENV === 'production') {
+  app.use(morgan('combined'));
+} else {
+  app.use(morgan('dev'));
+}
 
 // Middleware
 app.use(cors({

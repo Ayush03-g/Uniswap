@@ -58,7 +58,7 @@ export function MyPurchases() {
                       </div>
                       <div>
                         {item.product?.category === 'Notes' && item.product?.fileUrl ? (
-                          <Button variant="outline" size="sm" className="rounded-full gap-2 text-primary-600 border-primary-200 hover:bg-primary-50" onClick={() => window.open(`http://localhost:5000${item.product.fileUrl}`, '_blank')}>
+                          <Button variant="outline" size="sm" className="rounded-full gap-2 text-primary-600 border-primary-200 hover:bg-primary-50" onClick={() => window.open(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}${item.product.fileUrl}`, '_blank')}>
                             <Download className="w-4 h-4" /> Download PDF
                           </Button>
                         ) : (

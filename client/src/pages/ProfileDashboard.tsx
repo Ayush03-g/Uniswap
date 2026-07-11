@@ -229,13 +229,13 @@ export function ProfileDashboard() {
                           const formData = new FormData();
                           formData.append("avatar", file);
                           try {
-                            const res = await fetch("http://localhost:5000/api/upload/avatar", {
+                            const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/upload/avatar`, {
                               method: "POST",
                               body: formData,
                             });
                             const data = await res.json();
                             if (data.success) {
-                              const avatarUrl = `http://localhost:5000${data.url}`;
+                              const avatarUrl = data.url.startsWith('http') ? data.url : `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}${data.url}`;
                               setEditForm(prev => ({ ...prev, profilePicture: avatarUrl }));
                               const updatedUser = await updateProfile({ profilePicture: avatarUrl }).unwrap();
                               dispatch(updateUser(updatedUser));
