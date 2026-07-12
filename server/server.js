@@ -1,4 +1,13 @@
 require('dotenv').config();
+
+// Verify critical environment variables
+if (!process.env.JWT_SECRET) {
+  console.error('\n❌ CRITICAL: JWT_SECRET environment variable is missing.');
+  console.error('Please ensure your .env file has a secure JWT_SECRET defined.');
+  console.error('If deploying to Vercel/Render, add JWT_SECRET to your Environment Variables.\n');
+  process.exit(1);
+}
+
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');

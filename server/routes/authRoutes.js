@@ -315,7 +315,7 @@ router.post('/register', async (req, res) => {
     await Otp.deleteOne({ _id: otpDoc._id });
     
     const payload = { userId: newUser._id };
-    const token = jwt.sign(payload, process.env.JWT_SECRET || 'secret123', { expiresIn: '1d' });
+    const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1d' });
     
     res.status(201).json({ 
       token, 
@@ -423,7 +423,7 @@ router.post('/login', async (req, res) => {
     // Generate JWT
     const token = jwt.sign(
       { userId: user._id, email: user.email, role: user.role, status: user.status },
-      process.env.JWT_SECRET || 'secret123',
+      process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
 
@@ -475,7 +475,7 @@ router.post('/admin/login', async (req, res) => {
     // Generate JWT
     const token = jwt.sign(
       { userId: user._id, email: user.email, role: user.role, status: user.status },
-      process.env.JWT_SECRET || 'secret123',
+      process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
 
