@@ -25,8 +25,21 @@ if (process.env.NODE_ENV === 'production') {
   app.use(morgan('dev'));
 }
 
+const allowedOrigins = [
+  'http://localhost:5173',
+  process.env.CLIENT_URL,
+  'https://uniswap-uni-swap.vercel.app',
+  'https://uniswap-oy5i-bice.vercel.app'
+].filter(Boolean);
+
 app.use(cors({
-  origin: process.env.CLIENT_URL,
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true
 }));
 

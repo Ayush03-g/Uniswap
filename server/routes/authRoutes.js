@@ -185,6 +185,49 @@ router.post('/send-otp', otpLimiter, async (req, res) => {
   }
 });
 
+// @route POST /api/auth/verify-otp
+// @desc Verify an OTP standalone
+router.post('/verify-otp', async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+    
+    if (!email || !otp) {
+      return res.status(400).json({ message: 'Email and OTP are required.' });
+    }
+
+    const otpDoc = await Otp.findOne({ email });
+    if (!otpDoc) {
+      return res.status(400).json({ message: 'OTP expired or not found. Please request a new one.' });
+    }
+
+    if (otpDoc.attempts >= 5) {
+      await Otp.deleteOne({ _id: otpDoc._id });
+      return res.status(400).json({ message: 'Maximum OTP attempts reached. Please request a new OTP.' });
+    }
+
+    if (otpDoc.expiresAt < new Date()) {
+      await Otp.deleteOne({ _id: otpDoc._id });
+      return res.status(400).json({ message: 'OTP has expired. Please request a new one.' });
+    }
+
+    const isMatch = await bcrypt.compare(otp.toString(), otpDoc.hashedOtp);
+    if (!isMatch) {
+      otpDoc.attempts += 1;
+      await otpDoc.save();
+      return res.status(400).json({ message: 'Invalid OTP.' });
+    }
+
+    // Delete the OTP record on successful verification to prevent reuse
+    await Otp.deleteOne({ _id: otpDoc._id });
+
+    res.status(200).json({ message: 'OTP verified successfully.' });
+  } catch (error) {
+    console.error('\n❌ Server error in verify-otp:');
+    console.error('Stack Trace:', error.stack || error);
+    res.status(500).json({ message: 'Server error in verifying OTP' });
+  }
+});
+
 // @route POST /api/auth/register
 // @desc Register user with OTP
 router.post('/register', async (req, res) => {
