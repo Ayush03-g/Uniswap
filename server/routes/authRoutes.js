@@ -12,7 +12,10 @@ const rateLimitMap = new Map();
 const otpLimiter = (req, res, next) => {
   const ip = req.ip || req.connection.remoteAddress;
   const now = Date.now();
-  const windowMs = 60 * 60 * 1000; // 1 hour
+  
+  const isDev = process.env.NODE_ENV === 'development';
+  const windowMs = isDev ? 60 * 1000 : 60 * 60 * 1000; // 1 minute in dev, 1 hour in prod
+  const maxRequests = isDev ? 100 : 5; // 100 in dev, 5 in prod
 
   if (!rateLimitMap.has(ip)) {
     rateLimitMap.set(ip, { count: 1, firstRequest: now });
@@ -25,8 +28,11 @@ const otpLimiter = (req, res, next) => {
     return next();
   }
 
-  if (record.count >= 5) {
-    return res.status(429).json({ message: 'Too many OTP requests from this IP, please try again after an hour.' });
+  if (record.count >= maxRequests) {
+    return res.status(429).json({ 
+      success: false, 
+      message: 'Too many OTP requests. Please try again later.' 
+    });
   }
 
   record.count += 1;
