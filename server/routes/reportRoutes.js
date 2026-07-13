@@ -38,18 +38,11 @@ router.post("/", upload.single("screenshot"), async (req, res) => {
 
     await newReport.save();
 
-    // Setup Nodemailer (Depends on environment variables EMAIL_USER and EMAIL_PASS)
-    if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
-      const transporter = nodemailer.createTransport({
-        service: "gmail",
-        auth: {
-          user: process.env.EMAIL_USER,
-          pass: process.env.EMAIL_PASS,
-        },
-      });
-
+    // Setup Nodemailer
+    const transporter = require('../config/smtp');
+    if (process.env.SMTP_HOST) {
       const mailOptions = {
-        from: process.env.EMAIL_USER,
+        from: `"UniSwap" <${process.env.EMAIL_FROM}>`,
         to: "ayushgargsbl@gmail.com",
         subject: `New UniSwap Report: [${issueType}] ${subject}`,
         html: `
@@ -79,7 +72,7 @@ router.post("/", upload.single("screenshot"), async (req, res) => {
         console.error("Nodemailer failed to send email:", err);
       });
     } else {
-      console.warn("EMAIL_USER or EMAIL_PASS not set in environment variables. Email notification was not sent.");
+      console.warn("SMTP variables not set in environment variables. Email notification was not sent.");
     }
 
     res.status(201).json({

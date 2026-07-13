@@ -39,42 +39,7 @@ const otpLimiter = (req, res, next) => {
   next();
 };
 
-// Transporter initialization
-let transporter;
-
-const initializeTransporter = async () => {
-  if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
-
-    transporter = nodemailer.createTransport({
-      service: "gmail",
-      family: 4,
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS
-      }
-    });
-
-    try {
-      await transporter.verify();
-      console.log("✅ SMTP Transporter verified successfully.");
-    } catch (err) {
-      console.error("❌ SMTP verification failed:", err);
-    }
-
-  } else {
-    console.log("❌ EMAIL_USER or EMAIL_PASS is missing.");
-  }
-};
-
-// Initialize immediately
-initializeTransporter();
-
-const getTransporter = async () => {
-  if (!transporter) {
-    await initializeTransporter();
-  }
-  return transporter;
-};
+const transporter = require('../config/smtp');
 
 const getEmailTemplate = (otp, type) => {
   const title = type === 'register' ? 'Verify Your Account' : 'Reset Your Password';
@@ -87,7 +52,7 @@ const getEmailTemplate = (otp, type) => {
         <div style="text-align: center; margin: 30px 0;">
           <span style="font-size: 32px; font-weight: bold; color: #6a1b9a; padding: 10px 20px; border: 2px dashed #6a1b9a; border-radius: 4px; letter-spacing: 5px;">${otp}</span>
         </div>
-        <p style="font-size: 14px; color: #666666; text-align: center;">This OTP is valid for <strong>5 minutes</strong>.</p>
+        <p style="font-size: 14px; color: #666666; text-align: center;">This OTP is valid for <strong>10 minutes</strong>.</p>
         <hr style="border: none; border-top: 1px solid #eeeeee; margin: 20px 0;" />
         <p style="font-size: 12px; color: #999999; text-align: center;">If you did not request this, please ignore this email.</p>
       </div>
@@ -138,41 +103,34 @@ router.post('/send-otp', otpLimiter, async (req, res) => {
     const newOtp = new Otp({
       email,
       hashedOtp,
-      expiresAt: new Date(Date.now() + 5 * 60 * 1000), // 5 minutes
+      expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes
       attempts: 0
     });
     await newOtp.save();
     
     // Send Email
-    const mailTransporter = await getTransporter();
     const mailOptions = {
-      from: '"UniSwap Team" <noreply@uniswap.com>',
+      from: `"UniSwap" <${process.env.EMAIL_FROM}>`,
       to: email,
-      subject: type === 'register' ? 'Verify Your UniSwap Account' : 'Reset Your UniSwap Password',
+      subject: 'UniSwap OTP Verification',
       html: getEmailTemplate(otp, type)
     };
 
     let info;
-    let previewUrl;
     try {
-      info = await mailTransporter.sendMail(mailOptions);
-      previewUrl = nodemailer.getTestMessageUrl(info);
+      info = await transporter.sendMail(mailOptions);
     } catch (emailError) {
       console.error('\n❌ CRITICAL: Failed to send OTP email.');
       console.error('Stack Trace:', emailError.stack || emailError);
-      return res.status(500).json({ message: 'Failed to send OTP email. Please verify SMTP configuration.' });
+      return res.status(500).json({ success: false, message: 'Failed to send OTP email.' });
     }
     
     console.log(`\n=========================================`);
     console.log(`[DEVELOPMENT] OTP Generated: ${otp}`);
-    if (previewUrl) {
-      console.log(`[DEVELOPMENT] Ethereal Preview URL: ${previewUrl}`);
-    }
     console.log(`=========================================\n`);
     
     res.status(200).json({ 
-      message: 'OTP sent successfully to email.',
-      previewUrl: previewUrl || undefined
+      message: 'OTP sent successfully to email.'
     });
   } catch (error) {
     console.error('\n❌ Server error in send-otp:');
