@@ -124,6 +124,7 @@ router.post('/send-otp', otpLimiter, async (req, res) => {
       console.log(`[SMTP] Port: ${process.env.SMTP_PORT}`);
       console.log(`[SMTP] Sender: ${process.env.EMAIL_FROM}`);
       console.log(`[SMTP] Recipient: ${email}`);
+      console.log("OTP:", otp);
       console.log(`=========================================\n`);
       info = await transporter.sendMail(mailOptions);
     } catch (emailError) {
