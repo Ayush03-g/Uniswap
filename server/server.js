@@ -83,7 +83,7 @@ mongoose.connect(dbUri)
     const User = require('./models/User');
     const bcrypt = require('bcryptjs');
     try {
-      const adminEmail = 'admin@medicaps.ac.in';
+      const adminEmail = 'admin@example.com';
       const adminExists = await User.findOne({ email: adminEmail });
       if (!adminExists) {
         const salt = await bcrypt.genSalt(10);

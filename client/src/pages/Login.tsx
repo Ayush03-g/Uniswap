@@ -28,9 +28,6 @@ export function Login() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!/^[A-Za-z0-9._%+-]+@medicaps\.ac\.in$/.test(email)) {
-      return setErrorMsg("Only Medi-Caps University email addresses (@medicaps.ac.in) are allowed.")
-    }
     
     try {
       const result = await login({ email, password }).unwrap()
@@ -65,15 +62,13 @@ export function Login() {
               </div>
             )}
             <div className="space-y-2">
-              <label className="text-sm font-medium leading-none">Email</label>
+              <label className="text-sm font-semibold text-gray-300">Email Address</label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input 
                   required
                   type="email" 
-                  placeholder="student@medicaps.ac.in" 
-                  pattern=".*@medicaps\.ac\.in"
-                  title="Only @medicaps.ac.in emails are allowed"
+                  placeholder="user@example.com" 
                   className="pl-9"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}

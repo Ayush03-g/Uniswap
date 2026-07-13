@@ -73,7 +73,7 @@ export function AdminLogin() {
                   value={email}
                   onChange={e => setEmail(e.target.value)}
                   className="w-full h-11 pl-10 pr-4 bg-[#252525] border border-[#333] rounded-xl text-white focus:outline-none focus:border-rose-500 focus:ring-1 focus:ring-rose-500 transition-colors"
-                  placeholder="admin@medicaps.ac.in"
+                  placeholder="admin@example.com"
                   required
                 />
               </div>

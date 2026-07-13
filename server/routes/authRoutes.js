@@ -70,9 +70,7 @@ router.post('/send-otp', otpLimiter, async (req, res) => {
       return res.status(400).json({ message: 'Email and type are required.' });
     }
     
-    if (!email.endsWith('@medicaps.ac.in')) {
-      return res.status(400).json({ message: 'Only Medi-Caps University email addresses (@medicaps.ac.in) are allowed.' });
-    }
+
 
     if (!['register', 'reset'].includes(type)) {
       return res.status(400).json({ message: 'Invalid OTP type.' });
@@ -203,9 +201,7 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ message: 'All fields are required.' });
     }
 
-    if (!email.endsWith('@medicaps.ac.in')) {
-      return res.status(400).json({ message: 'Only Medi-Caps University email addresses (@medicaps.ac.in) are allowed.' });
-    }
+
 
     if (!/^[A-Z]/.test(password) || password.length < 6 || !/[!@#$%^&*()_+=\-?.,:;/\\]/.test(password)) {
       return res.status(400).json({ message: 'Password must be at least 6 characters long, begin with an uppercase letter, and contain at least one special character.' });
@@ -297,9 +293,7 @@ router.post('/reset-password', async (req, res) => {
       return res.status(400).json({ message: 'All fields are required.' });
     }
 
-    if (!email.endsWith('@medicaps.ac.in')) {
-      return res.status(400).json({ message: 'Only Medi-Caps University email addresses (@medicaps.ac.in) are allowed.' });
-    }
+
 
     if (!/^[A-Z]/.test(newPassword) || newPassword.length < 6 || !/[!@#$%^&*()_+=\-?.,:;/\\]/.test(newPassword)) {
       return res.status(400).json({ message: 'Password must be at least 6 characters long, begin with an uppercase letter, and contain at least one special character.' });
@@ -357,9 +351,7 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ message: 'All fields are required.' });
     }
     
-    if (!email.endsWith('@medicaps.ac.in')) {
-      return res.status(400).json({ message: 'Only Medi-Caps University email addresses (@medicaps.ac.in) are allowed.' });
-    }
+
     
     const user = await User.findOne({ email });
     if (!user) {

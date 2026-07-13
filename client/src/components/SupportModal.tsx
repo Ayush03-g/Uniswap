@@ -59,8 +59,8 @@ export function SupportModal({ isOpen, onClose }: { isOpen: boolean; onClose: ()
                   <input required type="text" className="w-full h-[44px] rounded-lg border border-[rgba(255,255,255,0.1)] bg-[#0F0F0F] px-3 text-sm text-white focus:border-[#8B5CF6] focus:outline-none transition-colors" />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[14px] font-medium text-gray-300">University Email *</label>
-                  <input required type="email" pattern=".*@medicaps\.ac\.in$" title="Must end with @medicaps.ac.in" className="w-full h-[44px] rounded-lg border border-[rgba(255,255,255,0.1)] bg-[#0F0F0F] px-3 text-sm text-white focus:border-[#8B5CF6] focus:outline-none transition-colors" placeholder="...@medicaps.ac.in" />
+                  <label className="text-[14px] font-medium text-gray-300">Email Address *</label>
+                  <input required type="email" className="w-full h-[44px] rounded-lg border border-[rgba(255,255,255,0.1)] bg-[#0F0F0F] px-3 text-sm text-white focus:border-[#8B5CF6] focus:outline-none transition-colors" placeholder="user@example.com" />
                 </div>
               </div>
               

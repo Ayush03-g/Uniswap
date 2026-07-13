@@ -43,10 +43,6 @@ export function Register() {
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault()
     setErrorMsg("")
-    setSuccessMsg("")
-    if (!/^[A-Za-z0-9._%+-]+@medicaps\.ac\.in$/.test(email)) {
-      return setErrorMsg("Only Medi-Caps University email addresses (@medicaps.ac.in) are allowed.")
-    }
 
     if (!/^[A-Z]/.test(password) || password.length < 6 || !/[!@#$%^&*()_+=\-?.,:;/\\]/.test(password)) {
       return setErrorMsg("Password must be at least 6 characters long, begin with an uppercase letter, and contain at least one special character.")
@@ -134,15 +130,13 @@ export function Register() {
               </div>
             </div>
             <div className="space-y-1">
-              <label className="text-[13px] font-semibold text-gray-300 ml-1">University Email</label>
+                <label className="text-sm font-semibold text-gray-300">Email Address</label>
               <div className="relative">
                 <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-gray-500" />
                 <Input 
                   required
                   type="email" 
-                  placeholder="student@medicaps.ac.in" 
-                  pattern=".*@medicaps\.ac\.in"
-                  title="Only @medicaps.ac.in emails are allowed"
+                  placeholder="user@example.com" 
                   className="pl-10 h-[44px] rounded-[10px] bg-white/5 border-white/10 text-white placeholder:text-gray-500 focus-visible:ring-primary-500/50 focus-visible:border-primary-500 transition-all text-[14px]"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
