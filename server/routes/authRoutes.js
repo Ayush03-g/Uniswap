@@ -39,17 +39,14 @@ const otpLimiter = (req, res, next) => {
   next();
 };
 
-// Transporter initialization with fallback
+// Transporter initialization
 let transporter;
 
 const initializeTransporter = async () => {
   if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
+
     transporter = nodemailer.createTransport({
-      host: 'smtp.gmail.com',
-      port: 587,
-      secure: false, // TLS
-      requireTLS: true,
-      family: 4, // Force IPv4 to bypass Render's IPv6 ENETUNREACH errors
+      service: "gmail",
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS
@@ -58,23 +55,13 @@ const initializeTransporter = async () => {
 
     try {
       await transporter.verify();
-      console.log('✅ SMTP Transporter verified successfully (Port 587, TLS).');
+      console.log("✅ SMTP Transporter verified successfully.");
     } catch (err) {
-      console.error('❌ SMTP Transporter failed on Port 587:', err.stack || err);
+      console.error("❌ SMTP verification failed:", err);
     }
+
   } else {
-    // Fallback to auto-generated test account if no .env config
-    console.log('⚠️ No SMTP config found. Generating Ethereal test account...');
-    const testAccount = await nodemailer.createTestAccount();
-    transporter = nodemailer.createTransport({
-      host: testAccount.smtp.host,
-      port: testAccount.smtp.port,
-      secure: testAccount.smtp.secure,
-      auth: {
-        user: testAccount.user,
-        pass: testAccount.pass
-      }
-    });
+    console.log("❌ EMAIL_USER or EMAIL_PASS is missing.");
   }
 };
 
@@ -82,7 +69,9 @@ const initializeTransporter = async () => {
 initializeTransporter();
 
 const getTransporter = async () => {
-  if (!transporter) await initializeTransporter();
+  if (!transporter) {
+    await initializeTransporter();
+  }
   return transporter;
 };
 
