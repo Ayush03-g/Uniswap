@@ -118,6 +118,13 @@ router.post('/send-otp', otpLimiter, async (req, res) => {
 
     let info;
     try {
+      console.log(`\n=========================================`);
+      console.log(`[SMTP] Attempting to send OTP email...`);
+      console.log(`[SMTP] Host: ${process.env.SMTP_HOST}`);
+      console.log(`[SMTP] Port: ${process.env.SMTP_PORT}`);
+      console.log(`[SMTP] Sender: ${process.env.EMAIL_FROM}`);
+      console.log(`[SMTP] Recipient: ${email}`);
+      console.log(`=========================================\n`);
       info = await transporter.sendMail(mailOptions);
     } catch (emailError) {
       console.error('\n❌ CRITICAL: Failed to send OTP email.');
