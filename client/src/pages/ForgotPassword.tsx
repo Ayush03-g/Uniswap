@@ -75,7 +75,7 @@ export function ForgotPassword() {
     setErrorMsg("")
     setSuccessMsg("")
     try {
-      await sendOtp({ email, type: "reset" }).unwrap()
+      await sendOtp({ email, type: "reset", isResend: true }).unwrap()
       setSuccessMsg("A new OTP has been sent.")
       setResendTimer(30)
     } catch (err: any) {

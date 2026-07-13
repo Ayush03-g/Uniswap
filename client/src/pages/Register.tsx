@@ -87,7 +87,7 @@ export function Register() {
     setErrorMsg("")
     setSuccessMsg("")
     try {
-      await sendOtp({ email, type: "register" }).unwrap()
+      await sendOtp({ email, type: "register", isResend: true }).unwrap()
       setSuccessMsg("A new OTP has been sent.")
       setResendTimer(30)
     } catch (err: any) {

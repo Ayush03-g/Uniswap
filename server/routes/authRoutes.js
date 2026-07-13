@@ -119,23 +119,25 @@ router.post('/send-otp', otpLimiter, async (req, res) => {
     let info;
     try {
       console.log(`\n=========================================`);
-      console.log(`[SMTP] Attempting to send OTP email...`);
+      if (req.body.isResend) {
+        console.log("Resend OTP requested");
+      } else {
+        console.log("OTP requested");
+      }
       console.log(`[SMTP] Host: ${process.env.SMTP_HOST}`);
       console.log(`[SMTP] Port: ${process.env.SMTP_PORT}`);
       console.log(`[SMTP] Sender: ${process.env.EMAIL_FROM}`);
       console.log(`[SMTP] Recipient: ${email}`);
       console.log("OTP:", otp);
-      console.log(`=========================================\n`);
+      console.log(`Sending email`);
       info = await transporter.sendMail(mailOptions);
+      console.log(`Email sent successfully`);
+      console.log(`=========================================\n`);
     } catch (emailError) {
       console.error('\n❌ CRITICAL: Failed to send OTP email.');
       console.error('Stack Trace:', emailError.stack || emailError);
       return res.status(500).json({ success: false, message: 'Failed to send OTP email.' });
     }
-    
-    console.log(`\n=========================================`);
-    console.log(`[DEVELOPMENT] OTP Generated: ${otp}`);
-    console.log(`=========================================\n`);
     
     res.status(200).json({ 
       message: 'OTP sent successfully to email.'
