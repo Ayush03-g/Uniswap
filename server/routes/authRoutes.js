@@ -116,18 +116,15 @@ router.post('/send-otp', otpLimiter, async (req, res) => {
 
     let info;
     try {
-      console.log(`\n=========================================`);
-      if (req.body.isResend) {
-        console.log("Resend OTP requested");
-      } else {
-        console.log("OTP requested");
-      }
-      console.log("Using Gmail SMTP");
-      console.log(process.env.SMTP_USER);
+      console.log("=================================");
+      console.log("Sending OTP...");
+      console.log("Recipient:", email);
+      console.log("Sender:", process.env.EMAIL_FROM);
+      console.log("=================================");
+      
       info = await transporter.sendMail(mailOptions);
       console.log(`EMAIL SENT SUCCESSFULLY`);
       console.log(info);
-      console.log(`=========================================\n`);
     } catch (emailError) {
       console.error('\n❌ CRITICAL: Failed to send OTP email.');
       console.error('Stack Trace:', emailError.stack || emailError);
