@@ -122,12 +122,8 @@ router.post('/send-otp', otpLimiter, async (req, res) => {
       } else {
         console.log("OTP requested");
       }
-      console.log(`[SMTP] Host: ${process.env.SMTP_HOST}`);
-      console.log(`[SMTP] Port: ${process.env.SMTP_PORT}`);
-      console.log(`[SMTP] Sender: ${process.env.EMAIL_FROM}`);
-      console.log(`[SMTP] Recipient: ${email}`);
-      console.log("OTP:", otp);
-      console.log(`Sending email`);
+      console.log("Using Gmail SMTP");
+      console.log(process.env.SMTP_USER);
       info = await transporter.sendMail(mailOptions);
       console.log(`EMAIL SENT SUCCESSFULLY`);
       console.log(info);
