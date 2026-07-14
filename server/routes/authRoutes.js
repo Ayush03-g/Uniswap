@@ -116,12 +116,18 @@ router.post('/send-otp', otpLimiter, async (req, res) => {
 
     let info;
     try {
-      console.log("================================");
+      if (!process.env.SMTP_HOST || !process.env.SMTP_PORT || !process.env.SMTP_USER || !process.env.SMTP_PASS || !process.env.EMAIL_FROM) {
+        throw new Error("CRITICAL: One or more SMTP environment variables are missing (SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, EMAIL_FROM).");
+      }
+
+      console.log("==================================");
       console.log("Sending OTP...");
       console.log("SMTP Host:", process.env.SMTP_HOST);
-      console.log("Recipient:", email);
+      console.log("SMTP Port:", process.env.SMTP_PORT);
+      console.log("SMTP User:", process.env.SMTP_USER);
       console.log("Sender:", process.env.EMAIL_FROM);
-      console.log("================================");
+      console.log("Recipient:", email);
+      console.log("==================================");
       
       info = await transporter.sendMail(mailOptions);
       console.log(`EMAIL SENT SUCCESSFULLY`);
