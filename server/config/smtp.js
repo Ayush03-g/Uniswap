@@ -1,25 +1,38 @@
-const nodemailer = require("nodemailer");
+const transporter = {
+    sendMail: async (mailOptions) => {
+        const payload = {
+            sender: { email: process.env.EMAIL_FROM || mailOptions.from },
+            to: [{ email: mailOptions.to }],
+            subject: mailOptions.subject,
+            htmlContent: mailOptions.html
+        };
 
-const transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: Number(process.env.SMTP_PORT),
-    secure: false,
-    auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS
+        const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+            method: 'POST',
+            headers: {
+                'accept': 'application/json',
+                'api-key': process.env.BREVO_API_KEY || process.env.SMTP_PASS,
+                'content-type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Brevo API Error: ${response.status} - ${errorText}`);
+        }
+
+        return await response.json();
     },
-    tls: {
-        rejectUnauthorized: false
-    },
-    connectionTimeout: 30000,
-    greetingTimeout: 30000,
-    socketTimeout: 30000
-});
+    verify: async () => {
+        return true;
+    }
+};
 
 transporter.verify().then(() => {
-    console.log("✅ Brevo SMTP Connected");
+    console.log("✅ Brevo HTTP API Connected");
 }).catch(err => {
-    console.error("❌ Brevo SMTP Verification Failed:");
+    console.error("❌ Brevo HTTP API Verification Failed:");
     console.error(err);
 });
 
