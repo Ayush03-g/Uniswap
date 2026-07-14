@@ -1,8 +1,8 @@
 const nodemailer = require("nodemailer");
 
 const transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST || 'smtp.gmail.com',
-    port: Number(process.env.SMTP_PORT) || 587,
+    host: process.env.SMTP_HOST,
+    port: Number(process.env.SMTP_PORT),
     secure: false,
     auth: {
         user: process.env.SMTP_USER,
@@ -10,13 +10,16 @@ const transporter = nodemailer.createTransport({
     },
     tls: {
         rejectUnauthorized: false
-    }
+    },
+    connectionTimeout: 30000,
+    greetingTimeout: 30000,
+    socketTimeout: 30000
 });
 
 transporter.verify().then(() => {
-    console.log("✅ Gmail SMTP Connected");
+    console.log("✅ Brevo SMTP Connected");
 }).catch(err => {
-    console.error("❌ Gmail SMTP Verification Failed:");
+    console.error("❌ Brevo SMTP Verification Failed:");
     console.error(err);
 });
 

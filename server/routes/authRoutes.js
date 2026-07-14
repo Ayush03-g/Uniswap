@@ -116,11 +116,12 @@ router.post('/send-otp', otpLimiter, async (req, res) => {
 
     let info;
     try {
-      console.log("=================================");
+      console.log("================================");
       console.log("Sending OTP...");
+      console.log("SMTP Host:", process.env.SMTP_HOST);
       console.log("Recipient:", email);
       console.log("Sender:", process.env.EMAIL_FROM);
-      console.log("=================================");
+      console.log("================================");
       
       info = await transporter.sendMail(mailOptions);
       console.log(`EMAIL SENT SUCCESSFULLY`);
