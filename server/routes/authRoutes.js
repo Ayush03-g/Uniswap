@@ -122,8 +122,8 @@ router.post('/send-otp', otpLimiter, async (req, res) => {
       } else {
         console.log("OTP requested");
       }
-      console.log("Using Gmail SMTP");
-      console.log(process.env.SMTP_USER);
+      console.log("Using Brevo HTTP API");
+      console.log(`[Sender]: ${process.env.EMAIL_FROM}`);
       info = await transporter.sendMail(mailOptions);
       console.log(`EMAIL SENT SUCCESSFULLY`);
       console.log(info);
