@@ -36,6 +36,7 @@ if (process.env.NODE_ENV === 'production') {
 
 const allowedOrigins = [
   'http://localhost:5173',
+  'http://localhost:5000',
   process.env.CLIENT_URL,
   'https://uniswap-uni-swap.vercel.app',
   'https://uniswap-oy5i-bice.vercel.app'
