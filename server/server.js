@@ -39,7 +39,8 @@ const allowedOrigins = [
   'http://localhost:5000',
   process.env.CLIENT_URL,
   'https://uniswap-uni-swap.vercel.app',
-  'https://uniswap-oy5i-bice.vercel.app'
+  'https://uniswap-oy5i-bice.vercel.app',
+  'https://uniswap-psi-six.vercel.app'
 ].filter(Boolean);
 
 app.use(cors({
