@@ -40,9 +40,9 @@ router.post("/", upload.single("screenshot"), async (req, res) => {
 
     // Setup Nodemailer
     const transporter = require('../config/smtp');
-    if (process.env.SMTP_HOST) {
+    if (process.env.SMTP_USER) {
       const mailOptions = {
-        from: `"UniSwap" <${process.env.EMAIL_FROM}>`,
+        from: process.env.SMTP_USER,
         to: "ayushgargsbl@gmail.com",
         subject: `New UniSwap Report: [${issueType}] ${subject}`,
         html: `

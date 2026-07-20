@@ -65,13 +65,12 @@ const getEmailTemplate = (otp, type) => {
 router.post('/send-otp', otpLimiter, async (req, res) => {
   try {
     const { email, type } = req.body;
+    console.log(`\n[OTP FLOW] Step 1: User email received - ${email} (Type: ${type})`);
     
     if (!email || !type) {
       return res.status(400).json({ message: 'Email and type are required.' });
     }
     
-
-
     if (!['register', 'reset'].includes(type)) {
       return res.status(400).json({ message: 'Invalid OTP type.' });
     }
@@ -91,6 +90,7 @@ router.post('/send-otp', otpLimiter, async (req, res) => {
 
     // Generate 6-digit OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    console.log(`[OTP FLOW] Step 2: OTP Generated successfully.`);
     
     const salt = await bcrypt.genSalt(10);
     const hashedOtp = await bcrypt.hash(otp, salt);
@@ -105,10 +105,11 @@ router.post('/send-otp', otpLimiter, async (req, res) => {
       attempts: 0
     });
     await newOtp.save();
+    console.log(`[OTP FLOW] Step 3: OTP Stored in database for ${email}.`);
     
     // Send Email
     const mailOptions = {
-      from: `"UniSwap" <${process.env.EMAIL_FROM}>`,
+      from: process.env.SMTP_USER, // Strictly use authenticated user to avoid spoofing rejections
       to: email,
       subject: 'UniSwap OTP Verification',
       html: getEmailTemplate(otp, type)
@@ -116,26 +117,22 @@ router.post('/send-otp', otpLimiter, async (req, res) => {
 
     let info;
     try {
-      if (!process.env.SMTP_HOST || !process.env.SMTP_PORT || !process.env.SMTP_USER || !process.env.SMTP_PASS || !process.env.EMAIL_FROM) {
-        throw new Error("CRITICAL: One or more SMTP environment variables are missing (SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, EMAIL_FROM).");
+      if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+        throw new Error("CRITICAL: SMTP_USER or SMTP_PASS environment variables are missing.");
       }
 
-      console.log("==================================");
-      console.log("Sending OTP...");
-      console.log("SMTP Host:", process.env.SMTP_HOST);
-      console.log("SMTP Port:", process.env.SMTP_PORT);
-      console.log("SMTP User:", process.env.SMTP_USER);
-      console.log("Sender:", process.env.EMAIL_FROM);
-      console.log("Recipient:", email);
-      console.log("==================================");
+      console.log(`[OTP FLOW] Step 4: Calling transporter.sendMail() via Nodemailer...`);
+      console.log(`  - From: ${mailOptions.from}`);
+      console.log(`  - To: ${mailOptions.to}`);
       
       info = await transporter.sendMail(mailOptions);
-      console.log(`EMAIL SENT SUCCESSFULLY`);
-      console.log(info);
+      console.log(`[OTP FLOW] Step 5: sendMail() SUCCESS!`);
+      console.log(`  - Response from Gmail: ${info.response}`);
+      console.log(`  - Message ID: ${info.messageId}`);
     } catch (emailError) {
-      console.error('\n❌ CRITICAL: Failed to send OTP email.');
-      console.error('Stack Trace:', emailError.stack || emailError);
-      return res.status(500).json({ success: false, message: 'Failed to send OTP email.' });
+      console.error('\n[OTP FLOW] ❌ ERROR: sendMail() FAILED with exception:');
+      console.error(emailError.stack || emailError);
+      throw emailError; // Do not swallow, pass it to outer catch
     }
     
     res.status(200).json({ 
