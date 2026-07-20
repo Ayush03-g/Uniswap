@@ -184,14 +184,6 @@ app.use('/api/users', userRoutes);
 const adminRoutes = require('./routes/adminRoutes');
 app.use('/api/admin', adminRoutes);
 
-// Production Static Serving
-if (process.env.NODE_ENV === 'production') {
-  const clientBuildPath = path.resolve(__dirname, '../client/dist');
-  app.use(express.static(clientBuildPath));
-  
-  app.get('*', (req, res) => {
-    res.sendFile(path.resolve(clientBuildPath, 'index.html'));
-  });
-}
+// Backend is API-only. Frontend is hosted on Vercel.
 
 // server.listen has been moved to run only after MongoDB connects successfully
