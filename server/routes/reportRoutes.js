@@ -74,9 +74,6 @@ router.post("/", upload.single("screenshot"), async (req, res) => {
       transporter.sendMail(mailOptions).catch(err => {
         console.error("Nodemailer failed to send email:", err);
       });
-    } else {
-      console.warn("SMTP variables not set in environment variables. Email notification was not sent.");
-    }
 
     res.status(201).json({
       success: true,
