@@ -1,9 +1,9 @@
 const express = require("express");
 const router = express.Router();
 const Report = require("../models/Report");
-const nodemailer = require("nodemailer");
 const multer = require("multer");
 const path = require("path");
+const transporter = require('../config/smtp');
 
 // Configure Multer for screenshot uploads
 const storage = multer.diskStorage({
@@ -39,11 +39,14 @@ router.post("/", upload.single("screenshot"), async (req, res) => {
     await newReport.save();
 
     // Setup Nodemailer
-    const transporter = require('../config/smtp');
-    if (process.env.SMTP_USER) {
-      const mailOptions = {
-        from: process.env.SMTP_USER,
-        to: "ayushgargsbl@gmail.com",
+    let fromAddress = 'noreply@uniswap.com';
+    if (process.env.EMAIL_FROM) {
+      fromAddress = process.env.EMAIL_FROM;
+    }
+    
+    const mailOptions = {
+      from: fromAddress,
+      to: 'ayush.garg.399167@gmail.com',
         subject: `New UniSwap Report: [${issueType}] ${subject}`,
         html: `
           <h3>New Issue Reported on UniSwap</h3>

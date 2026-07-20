@@ -3,7 +3,7 @@ const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
-const nodemailer = require('nodemailer');
+
 const User = require('../models/User');
 const Otp = require('../models/Otp');
 // In-memory rate limiting for send-otp: 5 requests per hour per email (simplified)
@@ -109,7 +109,7 @@ router.post('/send-otp', otpLimiter, async (req, res) => {
     
     // Send Email
     const mailOptions = {
-      from: process.env.SMTP_USER, // Strictly use authenticated user to avoid spoofing rejections
+      from: process.env.EMAIL_FROM, // Strictly use authenticated user to avoid spoofing rejections
       to: email,
       subject: 'UniSwap OTP Verification',
       html: getEmailTemplate(otp, type)
@@ -117,17 +117,16 @@ router.post('/send-otp', otpLimiter, async (req, res) => {
 
     let info;
     try {
-      if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
-        throw new Error("CRITICAL: SMTP_USER or SMTP_PASS environment variables are missing.");
+      if (!process.env.BREVO_API_KEY || !process.env.EMAIL_FROM) {
+        throw new Error("CRITICAL: BREVO_API_KEY or EMAIL_FROM environment variables are missing.");
       }
 
-      console.log(`[OTP FLOW] Step 4: Calling transporter.sendMail() via Nodemailer...`);
+      console.log(`[OTP FLOW] Step 4: Calling transporter.sendMail() via Brevo API...`);
       console.log(`  - From: ${mailOptions.from}`);
       console.log(`  - To: ${mailOptions.to}`);
       
       info = await transporter.sendMail(mailOptions);
       console.log(`[OTP FLOW] Step 5: sendMail() SUCCESS!`);
-      console.log(`  - Response from Gmail: ${info.response}`);
       console.log(`  - Message ID: ${info.messageId}`);
     } catch (emailError) {
       console.error('\n[OTP FLOW] ❌ ERROR: sendMail() FAILED with exception:');

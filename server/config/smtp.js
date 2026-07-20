@@ -1,19 +1,17 @@
-const nodemailer = require('nodemailer');
-
 console.log('--- Email Configuration Check ---');
 let missingVariables = false;
 
-if (process.env.SMTP_USER) {
-    console.log('✓ SMTP_USER loaded');
+if (process.env.BREVO_API_KEY) {
+    console.log('✓ BREVO_API_KEY loaded');
 } else {
-    console.error('✗ SMTP_USER missing');
+    console.error('✗ BREVO_API_KEY missing');
     missingVariables = true;
 }
 
-if (process.env.SMTP_PASS) {
-    console.log('✓ SMTP_PASS loaded');
+if (process.env.EMAIL_FROM) {
+    console.log('✓ EMAIL_FROM loaded');
 } else {
-    console.error('✗ SMTP_PASS missing');
+    console.error('✗ EMAIL_FROM missing');
     missingVariables = true;
 }
 
@@ -25,27 +23,38 @@ if (missingVariables) {
 }
 console.log('---------------------------------');
 
-const transporter = nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 587,
-    secure: false, // true for 465, false for other ports (uses STARTTLS)
-    auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS
-    }
-});
+const transporter = {
+    sendMail: async (mailOptions) => {
+        console.log(`[BREVO API] Preparing payload for ${mailOptions.to}`);
+        
+        const payload = {
+            sender: { email: process.env.EMAIL_FROM },
+            to: [{ email: mailOptions.to }],
+            subject: mailOptions.subject,
+            htmlContent: mailOptions.html
+        };
 
-transporter.verify((error, success) => {
-    if (error) {
-        console.error("❌ Nodemailer Gmail SMTP Verification Failed:");
-        console.error(error);
-        // Fail loudly as per requirements
-        if (process.env.NODE_ENV !== 'test') {
-            process.exit(1);
+        console.log(`[BREVO API] Calling https://api.brevo.com/v3/smtp/email...`);
+        const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+            method: 'POST',
+            headers: {
+                'accept': 'application/json',
+                'api-key': process.env.BREVO_API_KEY,
+                'content-type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error(`[BREVO API] ❌ ERROR: ${response.status} - ${errorText}`);
+            throw new Error(`Brevo API Error: ${response.status} - ${errorText}`);
         }
-    } else {
-        console.log("✅ Nodemailer Gmail SMTP Connected Successfully");
+
+        const data = await response.json();
+        console.log(`[BREVO API] ✅ SUCCESS: Message ID ${data.messageId}`);
+        return data;
     }
-});
+};
 
 module.exports = transporter;
