@@ -34,10 +34,12 @@ if (process.env.NODE_ENV === 'production') {
   app.use(morgan('dev'));
 }
 
+const clientUrl = process.env.CLIENT_URL ? process.env.CLIENT_URL.replace(/\/$/, '') : '';
+
 const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:5000',
-  process.env.CLIENT_URL,
+  clientUrl,
   'https://uniswap-uni-swap.vercel.app',
   'https://uniswap-oy5i-bice.vercel.app',
   'https://uniswap-psi-six.vercel.app'
@@ -124,7 +126,7 @@ const { Server } = require('socket.io');
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: process.env.CLIENT_URL,
+    origin: clientUrl,
     credentials: true
   }
 });
