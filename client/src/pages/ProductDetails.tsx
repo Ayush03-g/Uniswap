@@ -399,16 +399,7 @@ export function ProductDetails() {
                     Add to Cart
                   </Button>
                 </div>
-                <div className="flex gap-4">
-                  <Button 
-                    size="lg" 
-                    className="flex-1 rounded-2xl gap-2 bg-[#6C3BFF] hover:bg-[#8B5CF6] text-white border-none shadow-[0_4px_14px_rgba(108,59,255,0.4)] transition-all hover:scale-[1.02]" 
-                    onClick={handleChatSeller}
-                    disabled={isRequesting}
-                  >
-                    {isRequesting ? <Loader2 className="w-5 h-5 animate-spin" /> : <MessageCircle className="w-5 h-5" />}
-                    {isRequesting ? "Starting Chat..." : "Chat Seller"}
-                  </Button>
+                <div className="flex gap-4 mt-2">
                   <Button 
                     size="lg" 
                     className="flex-1 rounded-2xl gap-2 bg-[#25D366] hover:bg-[#128C7E] text-white border-none shadow-[0_4px_14px_rgba(37,211,102,0.4)] transition-all hover:scale-[1.02] disabled:bg-gray-400 disabled:shadow-none" 
