@@ -209,4 +209,27 @@ router.put('/read/:id', auth, async (req, res) => {
   }
 });
 
+// DELETE a conversation
+router.delete('/:id', auth, async (req, res) => {
+  try {
+    const conversationId = req.params.id;
+    const conversation = await Conversation.findById(conversationId);
+    
+    if (!conversation) return res.status(404).json({ message: 'Conversation not found' });
+    
+    // Allow if user is participant
+    if (conversation.buyerId.toString() !== req.user.userId && conversation.sellerId.toString() !== req.user.userId) {
+      return res.status(403).json({ message: 'Not authorized' });
+    }
+    
+    await Message.deleteMany({ conversationId });
+    await Conversation.findByIdAndDelete(conversationId);
+    
+    res.json({ success: true, message: 'Conversation deleted' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error deleting conversation' });
+  }
+});
+
 module.exports = router;

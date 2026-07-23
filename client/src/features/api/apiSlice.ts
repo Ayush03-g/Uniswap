@@ -83,6 +83,12 @@ export const apiSlice = createApi({
     getConversations: builder.query({
       query: () => '/chat',
     }),
+    deleteConversation: builder.mutation({
+      query: (id) => ({
+        url: `/chat/${id}`,
+        method: 'DELETE',
+      }),
+    }),
     createDirectChat: builder.mutation({
       query: (data) => ({
         url: '/chat/direct',
@@ -314,6 +320,7 @@ export const {
   useCreatePurchaseRequestMutation,
   useUpdatePurchaseRequestMutation,
   useGetConversationsQuery,
+  useDeleteConversationMutation,
   useGetMessagesQuery,
   useGetCartQuery,
   useAddToCartMutation,

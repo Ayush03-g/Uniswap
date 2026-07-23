@@ -8,7 +8,8 @@ import { Button } from "../components/ui/Button"
 import { Send, User as UserIcon, MessageSquare, ShieldCheck, Check, CheckCheck, X, Loader2, ArrowDown, ExternalLink } from "lucide-react"
 import { useSelector } from "react-redux"
 import type { RootState } from "../store"
-import { useGetConversationsQuery, useGetMessagesQuery, useUpdatePurchaseRequestMutation } from "../features/api/apiSlice"
+import { useGetConversationsQuery, useGetMessagesQuery, useUpdatePurchaseRequestMutation, useDeleteConversationMutation, apiSlice } from "../features/api/apiSlice"
+import { useDispatch } from "react-redux"
 
 const formatTimeAgo = (dateStr: string) => {
   if (!dateStr) return '';
@@ -39,6 +40,12 @@ export function Chat({ isModal = false, modalConversationId = null, onClose }: {
   const { data: conversations = [], refetch: refetchConversations } = useGetConversationsQuery(undefined, { skip: !user })
   const { data: historyMessages = [], isLoading: loadingHistory } = useGetMessagesQuery(activeConversationId, { skip: !activeConversationId })
   const [updatePurchaseRequest] = useUpdatePurchaseRequestMutation()
+  const [deleteConversationMutation] = useDeleteConversationMutation()
+  const dispatch = useDispatch<any>()
+  
+  // Context Menu State
+  const [contextMenu, setContextMenu] = useState<{ visible: boolean, x: number, y: number, conversationId: string | null }>({ visible: false, x: 0, y: 0, conversationId: null })
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   
   const chatContainerRef = useRef<HTMLDivElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -73,24 +80,35 @@ export function Chat({ isModal = false, modalConversationId = null, onClose }: {
       setShowScrollButton(false)
       
       if (activeConversationId) {
-        // Mark read
+        // INSTANTLY update unread count in Redux cache to 0
+        dispatch(
+          apiSlice.util.updateQueryData('getConversations', undefined, (draft: any) => {
+            const conv = draft.find((c: any) => c._id === activeConversationId);
+            if (conv) {
+              conv.myUnreadCount = 0;
+            }
+          })
+        );
+        
+        // Mark read on backend
         fetch(`${import.meta.env.VITE_API_URL || import.meta.env.VITE_API_URL}/api/chat/read/${activeConversationId}`, {
           method: "PUT",
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('token')}`
           }
         }).then(() => {
-          if (typeof refetchConversations === 'function') refetchConversations()
-          
           // Emit mark_read to socket
-          if (socket && activeConversation) {
-             const partner = getOtherUser(activeConversation)
-             socket.emit('mark_read', { conversationId: activeConversationId, senderId: partner?._id })
+          if (socket) {
+             const conv = conversations.find((c: any) => c._id === activeConversationId);
+             if (conv) {
+               const partner = conv.buyerId._id === user?.id ? conv.sellerId : conv.buyerId;
+               socket.emit('mark_read', { conversationId: activeConversationId, senderId: partner?._id })
+             }
           }
         }).catch(console.error)
       }
     }
-  }, [activeConversationId, historyMessages, refetchConversations, socket])
+  }, [activeConversationId, historyMessages, dispatch, conversations, socket])
 
   useEffect(() => {
     if (isAtBottom && chatContainerRef.current) {
@@ -168,9 +186,53 @@ export function Chat({ isModal = false, modalConversationId = null, onClose }: {
     const handleEsc = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && isModal && onClose) onClose();
     }
+    const handleClickOutside = () => {
+      if (contextMenu.visible) setContextMenu({ ...contextMenu, visible: false })
+    }
     window.addEventListener('keydown', handleEsc)
-    return () => window.removeEventListener('keydown', handleEsc)
-  }, [isModal, onClose])
+    window.addEventListener('click', handleClickOutside)
+    return () => {
+       window.removeEventListener('keydown', handleEsc)
+       window.removeEventListener('click', handleClickOutside)
+    }
+  }, [isModal, onClose, contextMenu.visible])
+
+  const handleDeleteConversation = async (convId: string) => {
+    if (window.confirm("Delete this conversation? This action cannot be undone.")) {
+      try {
+        await deleteConversationMutation(convId).unwrap();
+        // Optimistically remove from cache
+        dispatch(
+          apiSlice.util.updateQueryData('getConversations', undefined, (draft: any) => {
+            return draft.filter((c: any) => c._id !== convId);
+          })
+        );
+        if (activeConversationId === convId) {
+          setSearchParams({});
+        }
+      } catch (err) {
+        console.error("Failed to delete conversation", err);
+      }
+    }
+  }
+
+  const handleContextMenu = (e: React.MouseEvent, convId: string) => {
+    e.preventDefault();
+    setContextMenu({ visible: true, x: e.clientX, y: e.clientY, conversationId: convId });
+  }
+
+  const handleTouchStart = (e: React.TouchEvent, convId: string) => {
+    const touch = e.touches[0];
+    longPressTimer.current = setTimeout(() => {
+      setContextMenu({ visible: true, x: touch.clientX, y: touch.clientY, conversationId: convId });
+    }, 600); // 600ms long press
+  }
+
+  const handleTouchEnd = () => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+    }
+  }
 
   const activeConversation = conversations.find((c: any) => c._id === activeConversationId)
   const getOtherUser = (conv: any) => {
@@ -225,9 +287,6 @@ export function Chat({ isModal = false, modalConversationId = null, onClose }: {
         })
       })
       const data = await res.json()
-      // optimistic ui update could be here, but receive_message will handle it 
-      // if we are sender, receive_message doesn't fire for us from server in this implementation
-      // actually, the server route sends a 201 response. We should manually add it to live messages
       setLiveMessages(prev => [...prev, data])
       refetchConversations()
       scrollToBottom()
@@ -247,14 +306,15 @@ export function Chat({ isModal = false, modalConversationId = null, onClose }: {
   }
 
   const chatContent = (
-      <Card className={`${isModal ? 'w-full h-full rounded-none' : 'w-full max-w-5xl h-[80vh] rounded-3xl'} flex overflow-hidden border-white/20 shadow-2xl backdrop-blur-xl bg-white/40 relative`}>
-        <div className={`w-full md:w-[320px] border-r border-slate-200/50 bg-white/80 ${activeConversationId ? 'hidden md:flex' : 'flex'} flex-col backdrop-blur-md relative z-20 shrink-0`}>
-          <div className="p-5 border-b border-slate-200/50 bg-white/50 backdrop-blur-sm">
-            <h2 className="text-xl font-extrabold text-slate-800 flex items-center gap-2">
-              <MessageSquare className="w-5 h-5 text-primary-500" /> Messages
+      <Card className={`${isModal ? 'w-full h-full rounded-none border-0' : 'w-full h-full md:h-[calc(100vh-100px)] rounded-none md:rounded-3xl border-0 md:border-white/10'} flex overflow-hidden shadow-2xl backdrop-blur-xl bg-slate-900 md:bg-white/5 relative`}>
+        {/* SIDEBAR */}
+        <div className={`w-full md:w-[320px] lg:w-[380px] border-r border-white/10 bg-slate-900/95 ${activeConversationId ? 'hidden md:flex' : 'flex'} flex-col relative z-20 shrink-0`}>
+          <div className="h-[75px] px-5 border-b border-white/10 bg-slate-900/50 flex flex-col justify-center shrink-0">
+            <h2 className="text-xl font-extrabold text-white flex items-center gap-2">
+              <MessageSquare className="w-5 h-5 text-primary-400" /> Messages
             </h2>
           </div>
-          <div className="flex-1 overflow-y-auto p-2 space-y-1 custom-scrollbar">
+          <div className="flex-1 overflow-y-auto p-3 space-y-2 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-full">
             {conversations.filter((c: any) => c.lastMessage).map((conv: any) => {
               const partner = getOtherUser(conv)
               const isActive = conv._id === activeConversationId
@@ -265,34 +325,38 @@ export function Chat({ isModal = false, modalConversationId = null, onClose }: {
                 <div 
                   key={conv._id}
                   onClick={() => setSearchParams({ conversationId: conv._id })}
-                  className={`flex flex-col p-3 rounded-2xl cursor-pointer transition-all ${isActive ? 'bg-primary-500 shadow-md text-white' : 'bg-transparent hover:bg-slate-100/60 text-slate-700'}`}
+                  onContextMenu={(e) => handleContextMenu(e, conv._id)}
+                  onTouchStart={(e) => handleTouchStart(e, conv._id)}
+                  onTouchEnd={handleTouchEnd}
+                  onTouchMove={handleTouchEnd}
+                  className={`flex flex-col p-3 rounded-2xl cursor-pointer transition-all ${isActive ? 'bg-primary-600 shadow-md' : 'hover:bg-white/5'}`}
                 >
                   <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-full overflow-hidden shadow-sm shrink-0 bg-slate-200 relative">
+                    <div className="w-12 h-12 rounded-full overflow-hidden shadow-sm shrink-0 bg-slate-800 relative">
                        <img src={partner?.profilePicture || getMaleAvatarForUser(partner?.name)} alt={partner?.name} className="w-full h-full object-cover" />
                        {partnerOnline && (
-                         <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white rounded-full z-10"></span>
+                         <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-slate-900 rounded-full z-10"></span>
                        )}
                     </div>
                     <div className="flex-1 overflow-hidden">
                       <div className="flex justify-between items-center mb-0.5">
-                        <h4 className={`font-bold text-sm truncate pr-2 ${isActive ? 'text-white' : 'text-slate-800'}`}>{partner?.name || 'User'}</h4>
+                        <h4 className={`font-bold text-sm truncate pr-2 text-white`}>{partner?.name || 'User'}</h4>
                         {conv.lastMessageTime && (
-                          <span className={`text-[10px] shrink-0 font-medium ${isActive ? 'text-primary-100' : 'text-slate-400'}`}>{formatTimeAgo(conv.lastMessageTime)}</span>
+                          <span className={`text-[10px] shrink-0 font-medium ${isActive ? 'text-white/80' : 'text-slate-400'}`}>{formatTimeAgo(conv.lastMessageTime)}</span>
                         )}
                       </div>
-                      <p className={`text-xs truncate ${isActive ? 'text-primary-100' : (unread > 0 ? 'text-slate-800 font-semibold' : 'text-slate-500')}`}>
+                      <p className={`text-xs truncate ${isActive ? 'text-white/90' : (unread > 0 ? 'text-white font-bold' : 'text-slate-400')}`}>
                         {conv.lastMessage || 'Start of conversation'}
                       </p>
                     </div>
                   </div>
                   
                   {conv.type !== 'DIRECT_CHAT' && (
-                    <div className={`mt-2 flex items-center gap-2 p-1.5 rounded-lg border ${isActive ? 'bg-white/10 border-white/20 text-white' : 'bg-slate-50/50 border-slate-200/50 text-slate-600'} text-xs`}>
-                      <img src={getProductImage(conv.productId?.images)} className="w-6 h-6 object-cover rounded shadow-sm" alt="" />
+                    <div className={`mt-2 flex items-center gap-2 p-1.5 rounded-lg border ${isActive ? 'bg-black/20 border-black/10 text-white' : 'bg-white/5 border-white/5 text-slate-300'} text-xs`}>
+                      <img src={getProductImage(conv.productId?.images)} className="w-6 h-6 object-cover rounded shadow-sm shrink-0" alt="" />
                       <span className="truncate flex-1 font-medium">{conv.productId?.title}</span>
                       {unread > 0 && (
-                        <span className="bg-rose-500 text-white font-bold px-1.5 py-0.5 rounded-full text-[10px] shadow-sm">
+                         <span className="bg-rose-500 text-white font-bold px-1.5 py-0.5 rounded-full text-[10px] shadow-sm">
                           {unread}
                         </span>
                       )}
@@ -301,67 +365,70 @@ export function Chat({ isModal = false, modalConversationId = null, onClose }: {
                 </div>
               )
             })}
+            {conversations.length === 0 && (
+              <div className="text-center text-slate-500 py-10 text-sm">
+                No active conversations
+              </div>
+            )}
           </div>
         </div>
         
-        <div className="flex-1 flex flex-col h-full relative overflow-hidden bg-slate-900">
+        {/* MAIN CHAT AREA */}
+        <div className="flex-1 flex flex-col h-full relative overflow-hidden bg-[#0A0A0A]">
           {activeConversationId ? (
             <>
-              <div 
-                className="absolute inset-0 z-0 bg-cover bg-center bg-no-repeat blur-[20px] scale-110 opacity-60"
-                style={{ backgroundImage: `url(${activeConversation?.type === 'DIRECT_CHAT' ? '' : getProductImage(activeConversation?.productId?.images)})` }}
-              />
-              <div className="absolute inset-0 z-0 bg-black/85" />
-
-              <div className="h-[75px] px-4 md:px-5 border-b border-white/10 flex items-center justify-between gap-4 bg-slate-900/60 backdrop-blur-xl z-10 shrink-0 shadow-lg">
+              {/* HEADER */}
+              <div className="h-[75px] px-4 md:px-6 border-b border-white/10 flex items-center justify-between gap-4 bg-[#121212]/95 backdrop-blur-xl z-20 shrink-0 shadow-sm w-full">
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-full overflow-hidden border border-white/20 bg-[#1A1A1A] shadow-sm relative">
+                  <div className="w-12 h-12 rounded-full overflow-hidden border border-white/10 bg-[#1A1A1A] shrink-0 relative">
                      <img src={otherUser?.profilePicture || getMaleAvatarForUser(otherUser?.name)} alt={otherUser?.name} className="w-full h-full object-cover" />
                   </div>
-                  <div className="flex flex-col justify-center">
-                    <h3 className="font-bold text-base text-white truncate drop-shadow-sm leading-tight flex items-center gap-2">
+                  <div className="flex flex-col justify-center min-w-0">
+                    <h3 className="font-bold text-base text-white truncate flex items-center gap-2">
                       {otherUser?.name || "User"}
                       {isOtherUserOnline ? (
-                        <span className="text-[10px] bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full border border-green-500/30">Online</span>
+                        <span className="text-[10px] bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full border border-green-500/30 whitespace-nowrap">Online</span>
                       ) : (
-                        <span className="text-[10px] text-slate-400 font-normal">
+                        <span className="text-[10px] text-slate-400 font-normal whitespace-nowrap">
                           {otherUser?.lastSeen ? `Last seen ${formatTimeAgo(otherUser.lastSeen)}` : 'Offline'}
                         </span>
                       )}
                     </h3>
-                    <p className="text-xs text-primary-300 mt-1 h-4">
+                    <p className="text-xs text-primary-400 mt-0.5 h-4">
                       {typingUsers.has(activeConversationId) ? 'typing...' : ''}
                     </p>
                   </div>
                 </div>
                 
                 {activeConversation?.type !== 'DIRECT_CHAT' && activeConversation?.productId && (
-                  <Link to={`/products/${activeConversation.productId._id}`} onClick={() => onClose && onClose()} className="hidden sm:flex items-center gap-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl p-2 pr-4 transition-colors">
-                    <img src={getProductImage(activeConversation.productId.images)} className="w-10 h-10 object-cover rounded-lg shadow-sm" />
-                    <div className="flex flex-col max-w-[140px]">
+                  <Link to={`/products/${activeConversation.productId._id}`} onClick={() => onClose && onClose()} className="flex items-center gap-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl p-2 pr-4 transition-colors shrink-0 max-w-[200px] sm:max-w-xs">
+                    <img src={getProductImage(activeConversation.productId.images)} className="w-10 h-10 object-cover rounded-lg shadow-sm shrink-0" />
+                    <div className="flex flex-col min-w-0 hidden sm:flex">
                       <span className="text-white text-xs font-bold truncate">{activeConversation.productId.title}</span>
                       <span className="text-[#25D366] font-bold text-xs">₹{activeConversation.productId.price?.toLocaleString('en-IN')}</span>
                     </div>
-                    <ExternalLink className="w-4 h-4 text-slate-400 ml-2" />
+                    <ExternalLink className="w-4 h-4 text-slate-400 ml-1 shrink-0" />
                   </Link>
                 )}
               </div>
 
+              {/* MESSAGES LIST */}
               <div 
                 ref={chatContainerRef} 
                 onScroll={handleScroll} 
-                className="flex-1 overflow-y-auto p-4 space-y-4 relative z-10 custom-scrollbar overflow-x-hidden pb-10"
+                className="flex-1 overflow-y-auto px-4 sm:px-6 md:px-8 py-6 space-y-4 relative z-10 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-white/20 [&::-webkit-scrollbar-thumb]:rounded-full overflow-x-hidden"
               >
                 {loadingHistory && (
                   <div className="flex justify-center py-4"><Loader2 className="w-6 h-6 animate-spin text-primary-500"/></div>
                 )}
+                
                 {liveMessages.map((msg: any, idx) => {
                   const isMe = msg.senderId === user?.id || msg.senderId?._id === user?.id
                   
                   if (msg.type === 'system') {
                     return (
-                      <div key={idx} className="flex justify-center my-4">
-                        <div className="bg-slate-800/80 text-slate-300 px-4 py-2 rounded-full text-xs font-medium border border-white/10 backdrop-blur-md">
+                      <div key={idx} className="flex justify-center my-6">
+                        <div className="bg-white/10 text-slate-300 px-4 py-1.5 rounded-full text-xs font-medium backdrop-blur-md">
                           {msg.text}
                         </div>
                       </div>
@@ -371,19 +438,19 @@ export function Chat({ isModal = false, modalConversationId = null, onClose }: {
                   if (msg.type === 'purchase_request') {
                     const isSeller = activeConversation?.sellerId?._id === user?.id || activeConversation?.sellerId === user?.id
                     return (
-                      <div key={idx} className="flex justify-center my-6">
-                        <Card className="w-full max-w-sm border-slate-700/50 shadow-2xl bg-slate-800/80 backdrop-blur-xl overflow-hidden text-slate-200">
-                          <div className="bg-primary-900/30 p-3 text-center border-b border-white/10">
-                            <h4 className="font-bold text-primary-300 flex justify-center gap-2 items-center">
-                              <ShieldCheck className="w-5 h-5"/> Purchase Request
+                      <div key={idx} className="flex justify-center my-6 w-full">
+                        <Card className="w-full max-w-sm border-white/10 shadow-xl bg-[#1A1A1A] overflow-hidden text-slate-200">
+                          <div className="bg-primary-900/30 p-3 text-center border-b border-white/5">
+                            <h4 className="font-bold text-primary-400 flex justify-center gap-2 items-center text-sm">
+                              <ShieldCheck className="w-4 h-4"/> Purchase Request
                             </h4>
                           </div>
                           <div className="p-4 space-y-4">
-                            <p className="text-sm font-medium whitespace-pre-wrap">{msg.text}</p>
+                            <p className="text-sm font-medium whitespace-pre-wrap break-words">{msg.text}</p>
                             {msg.productId && (
-                              <div className="bg-slate-900/50 p-3 rounded-xl border border-white/5 flex gap-3">
-                                  <img src={getProductImage(msg.productId.images)} className="w-16 h-16 object-cover rounded-lg shadow-sm border border-white/10"/>
-                                <div>
+                              <div className="bg-black/40 p-3 rounded-xl border border-white/5 flex gap-3">
+                                  <img src={getProductImage(msg.productId.images)} className="w-16 h-16 object-cover rounded-lg shadow-sm shrink-0 border border-white/10"/>
+                                <div className="min-w-0 flex-1">
                                   <p className="font-bold text-sm truncate text-white">{msg.productId.title}</p>
                                   <p className="text-[#25D366] font-bold">₹{msg.productId.price?.toLocaleString('en-IN')}</p>
                                 </div>
@@ -392,10 +459,10 @@ export function Chat({ isModal = false, modalConversationId = null, onClose }: {
                             
                             {isSeller && msg.purchaseRequestId && (
                               <div className="flex gap-2 pt-2">
-                                <Button size="sm" className="flex-1 bg-green-600 hover:bg-green-500 text-white gap-1 border-none" onClick={() => handleRequestAction(msg.purchaseRequestId, 'Accepted')}>
+                                <Button size="sm" className="flex-1 bg-[#25D366] hover:bg-[#1DA851] text-white gap-1 border-none" onClick={() => handleRequestAction(msg.purchaseRequestId, 'Accepted')}>
                                   <Check className="w-4 h-4"/> Accept
                                 </Button>
-                                <Button size="sm" variant="outline" className="flex-1 text-rose-400 hover:bg-rose-500 hover:text-white gap-1 border-rose-500/50" onClick={() => handleRequestAction(msg.purchaseRequestId, 'Rejected')}>
+                                <Button size="sm" variant="outline" className="flex-1 text-rose-400 hover:bg-rose-500 hover:text-white gap-1 border-rose-500/30 bg-transparent" onClick={() => handleRequestAction(msg.purchaseRequestId, 'Rejected')}>
                                   <X className="w-4 h-4"/> Reject
                                 </Button>
                               </div>
@@ -407,16 +474,16 @@ export function Chat({ isModal = false, modalConversationId = null, onClose }: {
                   }
 
                   return (
-                    <div key={idx} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
-                      <div className={`max-w-[75%] p-3 px-4 ${isMe ? 'bg-[#6C3BFF] text-white rounded-2xl rounded-br-sm shadow-[0_4px_15px_rgba(108,59,255,0.3)]' : 'bg-[#202020] text-slate-100 border border-white/10 rounded-2xl rounded-bl-sm shadow-md'} backdrop-blur-md`}>
-                        <p className="leading-relaxed text-[15px] whitespace-pre-wrap font-medium">{msg.text}</p>
-                        <div className={`flex items-center gap-1 mt-1.5 ${isMe ? 'justify-end text-primary-200' : 'justify-start text-slate-400'}`}>
+                    <div key={idx} className={`flex w-full ${isMe ? 'justify-end' : 'justify-start'}`}>
+                      <div className={`max-w-[85%] md:max-w-[70%] p-3 px-4 ${isMe ? 'bg-[#6C3BFF] text-white rounded-2xl rounded-br-sm' : 'bg-[#202020] text-slate-100 rounded-2xl rounded-bl-sm'} shadow-sm`}>
+                        <p className="leading-relaxed text-[15px] whitespace-pre-wrap break-words">{msg.text}</p>
+                        <div className={`flex items-center gap-1 mt-1.5 ${isMe ? 'justify-end text-white/70' : 'justify-start text-slate-400'}`}>
                           <span className="text-[10px] font-medium tracking-wide">
                             {new Date(msg.createdAt || Date.now()).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                           </span>
                           {isMe && (
                             <span className="ml-1">
-                              {msg.read ? <CheckCheck className="w-3.5 h-3.5 text-blue-300" /> : <Check className="w-3.5 h-3.5 text-slate-300" />}
+                              {msg.read ? <CheckCheck className="w-3.5 h-3.5 text-[#4ade80]" /> : <Check className="w-3.5 h-3.5 text-white/70" />}
                             </span>
                           )}
                         </div>
@@ -427,46 +494,45 @@ export function Chat({ isModal = false, modalConversationId = null, onClose }: {
                 <div ref={messagesEndRef} />
               </div>
               
+              {/* SCROLL TO BOTTOM BUTTON */}
               {showScrollButton && (
                 <div className="absolute bottom-24 left-1/2 -translate-x-1/2 z-20">
                   <button 
                     onClick={scrollToBottom}
-                    className="bg-primary-600 hover:bg-primary-700 text-white shadow-xl rounded-full px-5 py-2 text-sm font-bold flex items-center gap-2 animate-bounce transition-colors backdrop-blur-md border border-white/10"
+                    className="bg-[#202020] text-white shadow-xl rounded-full px-4 py-2 text-sm font-bold flex items-center gap-2 animate-bounce transition-colors border border-white/10 hover:bg-[#2A2A2A]"
                   >
                     <ArrowDown className="w-4 h-4" /> New Messages
                   </button>
                 </div>
               )}
 
-              <div className="p-3 bg-slate-900/80 border-t border-white/10 shrink-0 relative z-30 backdrop-blur-2xl w-full">
-                <form onSubmit={sendMessage} className="flex gap-2 items-end w-full max-w-4xl mx-auto">
-                  <div className="flex-1 relative bg-slate-800/80 border border-white/10 rounded-3xl overflow-hidden focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500 transition-all shadow-inner">
+              {/* MESSAGE COMPOSER */}
+              <div className="p-4 bg-[#121212] border-t border-white/10 shrink-0 relative z-30 w-full">
+                <form onSubmit={sendMessage} className="flex gap-2 items-end w-full max-w-5xl mx-auto">
+                  <div className="flex-1 relative bg-[#1A1A1A] border border-white/10 rounded-2xl overflow-hidden focus-within:border-primary-500 focus-within:ring-1 focus-within:ring-primary-500 transition-all shadow-inner">
                     <textarea 
                       value={inputMsg}
                       onChange={handleTyping}
                       onKeyDown={handleKeyDown}
-                      placeholder="Type your message... (Shift+Enter for new line)" 
-                      className="w-full max-h-32 min-h-[48px] px-4 py-3 bg-transparent text-white placeholder-slate-400 caret-primary-500 focus:outline-none resize-none overflow-y-auto block custom-scrollbar leading-relaxed"
+                      placeholder="Message... (Shift+Enter for new line)" 
+                      className="w-full max-h-[120px] min-h-[50px] px-4 py-3.5 bg-transparent text-white placeholder-slate-500 caret-primary-500 focus:outline-none resize-none overflow-y-auto block [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:bg-white/20 [&::-webkit-scrollbar-thumb]:rounded-full leading-relaxed text-sm sm:text-base"
                       rows={1}
                       style={{ height: "auto" }}
                     />
                   </div>
-                  <Button type="submit" disabled={!inputMsg.trim()} size="icon" className="w-12 h-12 rounded-full shadow-[0_4px_15px_rgba(108,59,255,0.4)] shrink-0 bg-gradient-to-br from-[#6C3BFF] to-[#8B5CF6] hover:scale-105 text-white border-none transition-all disabled:opacity-50 disabled:hover:scale-100">
+                  <Button type="submit" disabled={!inputMsg.trim()} size="icon" className="w-[50px] h-[50px] rounded-2xl shrink-0 bg-[#6C3BFF] hover:bg-[#8B5CF6] text-white border-none transition-all disabled:opacity-50 disabled:hover:bg-[#6C3BFF]">
                     <Send className="w-5 h-5 ml-0.5" />
                   </Button>
                 </form>
               </div>
             </>
           ) : (
-            <div className="h-full flex flex-col items-center justify-center text-slate-400 bg-slate-900 relative">
-               <div className="absolute inset-0 bg-slate-900/80 backdrop-blur-3xl z-0"></div>
-               <div className="relative z-10 flex flex-col items-center">
-                 <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mb-4 border border-white/10 shadow-lg">
-                   <MessageSquare className="w-10 h-10 text-slate-500" />
-                 </div>
-                 <h3 className="text-2xl font-bold text-slate-300 mb-2">Your Messages</h3>
-                 <p className="text-slate-500 max-w-xs text-center text-sm">Select a conversation from the sidebar or start a new chat from a product page.</p>
+            <div className="h-full flex flex-col items-center justify-center text-slate-400 bg-[#0A0A0A]">
+               <div className="w-24 h-24 bg-white/5 rounded-full flex items-center justify-center mb-6 border border-white/5">
+                 <MessageSquare className="w-10 h-10 text-slate-600" />
                </div>
+               <h3 className="text-xl font-bold text-white mb-2">Select a conversation</h3>
+               <p className="text-slate-500 text-sm max-w-xs text-center">Choose an existing conversation from the sidebar or start a new one.</p>
             </div>
           )}
         </div>
@@ -474,18 +540,56 @@ export function Chat({ isModal = false, modalConversationId = null, onClose }: {
   )
 
   return isModal ? (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200">
-      <div className="absolute inset-0 bg-black/65 backdrop-blur-[12px]" onClick={onClose}></div>
-      <div className="relative w-full md:w-[80vw] lg:w-[75vw] max-w-[1200px] h-[80vh] z-10 animate-in zoom-in-95 duration-200 shadow-[0_20px_50px_rgba(0,0,0,0.5)] rounded-3xl bg-white flex overflow-hidden">
-        <button onClick={onClose} className="absolute top-4 right-4 bg-black/40 hover:bg-black/60 p-2 rounded-full text-white transition-colors border border-white/20 shadow-sm z-50">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-0 md:p-4 animate-in fade-in duration-200">
+      <div className="absolute inset-0 bg-black/80 backdrop-blur-[4px]" onClick={onClose}></div>
+      <div className="relative w-full h-full md:w-[90vw] md:h-[85vh] lg:w-[80vw] max-w-[1400px] z-10 animate-in zoom-in-95 duration-200 bg-[#0A0A0A] md:rounded-3xl flex overflow-hidden shadow-2xl border-0 md:border md:border-white/10">
+        <button onClick={onClose} className="absolute top-4 right-4 bg-black/50 hover:bg-black/70 p-2 rounded-full text-white transition-colors border border-white/10 z-50">
           <X className="w-5 h-5" />
         </button>
         {chatContent}
+        
+        {/* Context Menu */}
+        {contextMenu.visible && contextMenu.conversationId && (
+          <div 
+            className="fixed z-[9999] bg-[#222222] border border-white/10 shadow-2xl rounded-xl py-1 w-48 overflow-hidden animate-in fade-in zoom-in-95 duration-100"
+            style={{ top: Math.min(contextMenu.y, window.innerHeight - 50), left: Math.min(contextMenu.x, window.innerWidth - 200) }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button 
+              className="w-full text-left px-4 py-2.5 text-sm text-rose-500 hover:bg-white/5 flex items-center gap-2 font-medium"
+              onClick={() => {
+                setContextMenu({ ...contextMenu, visible: false });
+                handleDeleteConversation(contextMenu.conversationId!);
+              }}
+            >
+              <X className="w-4 h-4" /> Delete Chat
+            </button>
+          </div>
+        )}
       </div>
     </div>
   ) : (
-    <div className="container mx-auto px-4 py-8 flex items-center justify-center min-h-[calc(100vh-80px)]">
+    <div className="w-full h-[calc(100vh-80px)] overflow-hidden relative">
       {chatContent}
+
+      {/* Context Menu */}
+      {contextMenu.visible && contextMenu.conversationId && (
+        <div 
+          className="fixed z-[9999] bg-[#222222] border border-white/10 shadow-2xl rounded-xl py-1 w-48 overflow-hidden animate-in fade-in zoom-in-95 duration-100"
+          style={{ top: Math.min(contextMenu.y, window.innerHeight - 50), left: Math.min(contextMenu.x, window.innerWidth - 200) }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button 
+            className="w-full text-left px-4 py-2.5 text-sm text-rose-500 hover:bg-white/5 flex items-center gap-2 font-medium"
+            onClick={() => {
+              setContextMenu({ ...contextMenu, visible: false });
+              handleDeleteConversation(contextMenu.conversationId!);
+            }}
+          >
+            <X className="w-4 h-4" /> Delete Chat
+          </button>
+        </div>
+      )}
     </div>
   )
 }
