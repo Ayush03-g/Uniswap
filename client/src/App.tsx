@@ -10,7 +10,6 @@ import { Landing } from "./pages/Landing"
 import { Dashboard } from "./pages/Dashboard"
 import { Login } from "./pages/Login"
 import { Register } from "./pages/Register"
-import { ForgotPassword } from "./pages/ForgotPassword"
 import { ProductDetails } from "./pages/ProductDetails"
 import { SellProduct } from "./pages/SellProduct"
 import { MyListings } from "./pages/MyListings"
@@ -81,7 +80,6 @@ function App() {
           <Route path="user/:id" element={<PublicProfile />} />
           <Route path="login" element={<Login />} />
           <Route path="register" element={<Register />} />
-          <Route path="forgot-password" element={<ForgotPassword />} />
           <Route path="search" element={<SearchResults />} />
           <Route path="category/:categoryName" element={<CategoryResults />} />
           <Route path="notes" element={<NotesMarketplace />} />

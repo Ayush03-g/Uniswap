@@ -1,11 +1,11 @@
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { Link, useNavigate } from "react-router-dom"
 import { ArrowRight, Mail, Lock, User, Loader2, Eye, EyeOff, Check, X } from "lucide-react"
 import { useDispatch } from "react-redux"
 import { Button } from "../components/ui/Button"
 import { Input } from "../components/ui/Input"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "../components/ui/Card"
-import { useRegisterMutation, useSendOtpMutation } from "../features/api/apiSlice"
+import { useRegisterMutation } from "../features/api/apiSlice"
 import { setCredentials } from "../features/auth/authSlice"
 
 export function Register() {
@@ -22,27 +22,16 @@ export function Register() {
   const navigate = useNavigate()
   const dispatch = useDispatch()
   
-  const [otp, setOtp] = useState("")
-  const [showOtpModal, setShowOtpModal] = useState(false)
-  const [resendTimer, setResendTimer] = useState(0)
-
   const [register, { isLoading: isRegistering }] = useRegisterMutation()
-  const [sendOtp, { isLoading: isSendingOtp }] = useSendOtpMutation()
 
-  // Handle countdown timer
-  useEffect(() => {
-    let interval: any
-    if (resendTimer > 0) {
-      interval = setInterval(() => {
-        setResendTimer((prev) => prev - 1)
-      }, 1000)
-    }
-    return () => clearInterval(interval)
-  }, [resendTimer])
-
-  const handleSendOtp = async (e: React.FormEvent) => {
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault()
     setErrorMsg("")
+    setSuccessMsg("")
+
+    if (!email.endsWith("@medicaps.ac.in")) {
+      return setErrorMsg("Registration is restricted to @medicaps.ac.in email addresses.")
+    }
 
     if (!/^[A-Z]/.test(password) || password.length < 6 || !/[!@#$%^&*()_+=\-?.,:;/\\]/.test(password)) {
       return setErrorMsg("Password must be at least 6 characters long, begin with an uppercase letter, and contain at least one special character.")
@@ -53,41 +42,14 @@ export function Register() {
     }
 
     try {
-      await sendOtp({ email, type: "register" }).unwrap()
-      setSuccessMsg("OTP sent successfully. Please check your email.")
-      setShowOtpModal(true)
-      setResendTimer(30)
-    } catch (err: any) {
-      setErrorMsg(err?.data?.message || "Failed to send OTP. Please try again.")
-    }
-  }
-
-  const handleVerifyOtp = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setErrorMsg("")
-    setSuccessMsg("")
-    
-    try {
-      const response = await register({ name, email, password, mobile, otp }).unwrap()
+      const response = await register({ name, email, password, mobile }).unwrap()
       dispatch(setCredentials({ user: response.user, token: response.token }))
-      setSuccessMsg("Email verified! Account created successfully.")
+      setSuccessMsg("Account created successfully.")
       setTimeout(() => {
         navigate("/")
       }, 1500)
     } catch (err: any) {
-      setErrorMsg(err?.data?.message || "Invalid or expired OTP.")
-    }
-  }
-
-  const handleResendOtp = async () => {
-    setErrorMsg("")
-    setSuccessMsg("")
-    try {
-      await sendOtp({ email, type: "register", isResend: true }).unwrap()
-      setSuccessMsg("A new OTP has been sent.")
-      setResendTimer(30)
-    } catch (err: any) {
-      setErrorMsg(err?.data?.message || "Failed to resend OTP.")
+      setErrorMsg(err?.data?.message || "Failed to register. Please try again.")
     }
   }
 
@@ -103,7 +65,7 @@ export function Register() {
             Join the exclusive student network for your university
           </CardDescription>
         </CardHeader>
-        <form onSubmit={handleSendOtp}>
+        <form onSubmit={handleRegister}>
           <CardContent className="space-y-3 px-6">
             {errorMsg && (
               <div className="p-3 bg-red-50 text-red-600 text-sm rounded-xl border border-red-200">
@@ -130,13 +92,13 @@ export function Register() {
               </div>
             </div>
             <div className="space-y-1">
-                <label className="text-sm font-semibold text-gray-300">Email Address</label>
+                <label className="text-sm font-semibold text-gray-300">University Email</label>
               <div className="relative">
                 <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-gray-500" />
                 <Input 
                   required
                   type="email" 
-                  placeholder="user@example.com" 
+                  placeholder="user@medicaps.ac.in" 
                   className="pl-10 h-[44px] rounded-[10px] bg-white/5 border-white/10 text-white placeholder:text-gray-500 focus-visible:ring-primary-500/50 focus-visible:border-primary-500 transition-all text-[14px]"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -227,8 +189,8 @@ export function Register() {
             </div>
             
             <div className="pt-2">
-              <Button className="w-full h-[44px] rounded-[10px] bg-gradient-to-r from-primary-600 to-accent-600 hover:from-primary-500 hover:to-accent-500 text-white font-bold text-[14px] shadow-lg shadow-primary-500/25 hover:shadow-primary-500/40 hover:-translate-y-0.5 transition-all duration-300" disabled={isSendingOtp}>
-                {isSendingOtp ? <Loader2 className="w-5 h-5 animate-spin" /> : (
+              <Button className="w-full h-[44px] rounded-[10px] bg-gradient-to-r from-primary-600 to-accent-600 hover:from-primary-500 hover:to-accent-500 text-white font-bold text-[14px] shadow-lg shadow-primary-500/25 hover:shadow-primary-500/40 hover:-translate-y-0.5 transition-all duration-300" disabled={isRegistering}>
+                {isRegistering ? <Loader2 className="w-5 h-5 animate-spin" /> : (
                   <>Create Account <ArrowRight className="w-[18px] h-[18px] ml-2" /></>
                 )}
               </Button>
@@ -244,60 +206,6 @@ export function Register() {
           </p>
         </CardFooter>
       </Card>
-
-      {/* OTP Verification Modal */}
-      {showOtpModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <Card className="w-full max-w-md bg-[#111111] border-border animate-in fade-in zoom-in-95 duration-200">
-            <CardHeader className="text-center pb-4">
-              <CardTitle className="text-2xl font-bold text-white">Verify Your Email</CardTitle>
-              <CardDescription className="text-muted-foreground mt-2">
-                We've sent a 6-digit code to <span className="text-white font-medium">{email}</span>
-              </CardDescription>
-            </CardHeader>
-            <form onSubmit={handleVerifyOtp}>
-              <CardContent className="space-y-4">
-                {errorMsg && (
-                  <div className="p-3 bg-red-500/10 text-red-500 text-sm rounded-xl border border-red-500/20 text-center">
-                    {errorMsg}
-                  </div>
-                )}
-                {successMsg && (
-                  <div className="p-3 bg-emerald-500/10 text-emerald-500 text-sm rounded-xl border border-emerald-500/20 text-center font-medium">
-                    {successMsg}
-                  </div>
-                )}
-                <div className="space-y-2 text-center">
-                  <Input
-                    required
-                    type="text"
-                    maxLength={6}
-                    placeholder="Enter 6-digit OTP"
-                    className="text-center text-2xl tracking-[0.5em] font-mono py-6"
-                    value={otp}
-                    onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
-                  />
-                </div>
-                
-                <Button className="w-full bg-primary-600 hover:bg-primary-700" size="lg" disabled={isRegistering || otp.length !== 6}>
-                  {isRegistering ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : "Verify & Create Account"}
-                </Button>
-                
-                <div className="text-center pt-2">
-                  <button
-                    type="button"
-                    disabled={resendTimer > 0}
-                    onClick={handleResendOtp}
-                    className="text-sm font-medium text-primary-500 hover:text-primary-400 disabled:text-muted-foreground disabled:cursor-not-allowed transition-colors"
-                  >
-                    {resendTimer > 0 ? `Resend available in ${resendTimer}s` : "Resend OTP"}
-                  </button>
-                </div>
-              </CardContent>
-            </form>
-          </Card>
-        </div>
-      )}
     </div>
   )
 }

@@ -63,20 +63,7 @@ export const apiSlice = createApi({
         body: userData,
       }),
     }),
-    sendOtp: builder.mutation({
-      query: (data) => ({
-        url: '/auth/send-otp',
-        method: 'POST',
-        body: data,
-      }),
-    }),
-    resetPassword: builder.mutation({
-      query: (data) => ({
-        url: '/auth/reset-password',
-        method: 'POST',
-        body: data,
-      }),
-    }),
+
     createPurchaseRequest: builder.mutation({
       query: (data) => ({
         url: '/requests',
@@ -316,8 +303,7 @@ export const {
   useDeleteProductMutation,
   useLoginMutation,
   useRegisterMutation,
-  useSendOtpMutation,
-  useResetPasswordMutation,
+
   useCreatePurchaseRequestMutation,
   useUpdatePurchaseRequestMutation,
   useGetConversationsQuery,

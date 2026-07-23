@@ -3,7 +3,6 @@ const router = express.Router();
 const Report = require("../models/Report");
 const multer = require("multer");
 const path = require("path");
-const transporter = require('../config/smtp');
 
 // Configure Multer for screenshot uploads
 const storage = multer.diskStorage({
@@ -37,43 +36,6 @@ router.post("/", upload.single("screenshot"), async (req, res) => {
     });
 
     await newReport.save();
-
-    // Setup Nodemailer
-    let fromAddress = 'noreply@uniswap.com';
-    if (process.env.EMAIL_FROM) {
-      fromAddress = process.env.EMAIL_FROM;
-    }
-    
-    const mailOptions = {
-      from: fromAddress,
-      to: 'ayush.garg.399167@gmail.com',
-        subject: `New UniSwap Report: [${issueType}] ${subject}`,
-        html: `
-          <h3>New Issue Reported on UniSwap</h3>
-          <p><strong>Name:</strong> ${name}</p>
-          <p><strong>Email:</strong> ${email}</p>
-          <p><strong>Issue Type:</strong> ${issueType}</p>
-          <p><strong>Subject:</strong> ${subject}</p>
-          <p><strong>Description:</strong></p>
-          <p>${description}</p>
-          ${screenshotUrl ? `<p><strong>Screenshot:</strong> Included as attachment or accessible via server <code>${screenshotUrl}</code></p>` : ""}
-        `,
-      };
-
-      // If there's an uploaded file, attach it to the email
-      if (req.file) {
-        mailOptions.attachments = [
-          {
-            filename: req.file.filename,
-            path: req.file.path
-          }
-        ];
-      }
-
-      // Send email asynchronously without blocking the response if it fails
-      transporter.sendMail(mailOptions).catch(err => {
-        console.error("Nodemailer failed to send email:", err);
-      });
 
     res.status(201).json({
       success: true,
