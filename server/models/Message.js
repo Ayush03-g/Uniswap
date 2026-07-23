@@ -9,6 +9,8 @@ const messageSchema = new mongoose.Schema({
   productId: { type: mongoose.Schema.Types.ObjectId, ref: 'Product' },
   purchaseRequestId: { type: mongoose.Schema.Types.ObjectId, ref: 'PurchaseRequest' },
   read: { type: Boolean, default: false },
+  deliveredAt: { type: Date },
+  readAt: { type: Date },
 }, {
   timestamps: true,
 });

@@ -13,6 +13,18 @@ import { AuthGuardModal } from "./AuthGuardModal"
 import { getMaleAvatarForUser } from "../utils/avatar"
 import { SupportModal } from "./SupportModal"
 
+const formatTimeAgo = (dateStr: string) => {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const minutes = Math.floor(diff / 60000);
+  if (minutes < 1) return 'Just now';
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days === 1) return 'Yesterday';
+  return `${days}d ago`;
+};
+
 export function Layout() {
   const { isAuthenticated, user } = useSelector((state: RootState) => state.auth)
   const [isSupportModalOpen, setIsSupportModalOpen] = useState(false)
@@ -59,11 +71,17 @@ export function Layout() {
   const handleOpenNotifications = () => {
     setShowNotifications(!showNotifications)
     setShowProfileMenu(false)
-    if (!showNotifications) {
-      const unreadIds = localNotifications.filter(n => !n.read).map(n => n._id)
-      unreadIds.forEach(id => markRead(id))
-      setLocalNotifications(prev => prev.map(n => ({ ...n, read: true })))
+  }
+
+  const handleNotificationClick = (n: any) => {
+    if (!n.read) {
+      markRead(n._id)
+      setLocalNotifications(prev => prev.map(notif => notif._id === n._id ? { ...notif, read: true } : notif))
     }
+    if (n.relatedId) {
+      navigate(`/chat?conversationId=${n.relatedId}`);
+    }
+    setShowNotifications(false);
   }
 
   const handleClearAll = async () => {
@@ -218,9 +236,14 @@ export function Layout() {
                             </div>
                           ) : (
                             localNotifications.map((n: any, idx: number) => (
-                              <div key={n._id || idx} className={`relative group p-3 rounded-xl border ${n.read ? 'bg-[rgba(255,255,255,0.02)] border-transparent' : 'bg-[rgba(139,92,246,0.1)] border-[#8B5CF6]/30'}`}>
-                                <h4 className="font-semibold text-sm text-white mb-1 pr-6">{n.title || (n.type === 'admin_message' ? 'Admin Notification' : 'Notification')}</h4>
-                                <p className="text-xs text-gray-400 pr-2">{n.message}</p>
+                              <div key={n._id || idx} 
+                                onClick={() => handleNotificationClick(n)}
+                                className={`relative group p-3 rounded-xl border cursor-pointer transition-all ${n.read ? 'bg-[rgba(255,255,255,0.02)] border-transparent hover:bg-[rgba(255,255,255,0.05)]' : 'bg-[rgba(139,92,246,0.1)] border-[#8B5CF6]/30 hover:bg-[rgba(139,92,246,0.15)]'}`}>
+                                <div className="flex justify-between items-start mb-1 pr-6">
+                                  <h4 className="font-semibold text-sm text-white truncate">{n.title || (n.type === 'admin_message' ? 'Admin Notification' : 'Notification')}</h4>
+                                  <span className="text-[10px] text-gray-400 whitespace-nowrap ml-2 mt-0.5">{n.createdAt ? formatTimeAgo(n.createdAt) : ''}</span>
+                                </div>
+                                <p className="text-xs text-gray-400 pr-2 line-clamp-2">{n.message}</p>
                                 <button 
                                   onClick={(e) => handleDeleteIndividual(e, n._id)}
                                   className="absolute top-3 right-3 text-gray-500 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-opacity"

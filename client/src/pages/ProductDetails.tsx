@@ -4,7 +4,7 @@ import { Heart, MapPin, Share2, Shield, MessageCircle, ShoppingCart, Loader2, Pl
 import { Button } from "../components/ui/Button"
 import { Card, CardContent } from "../components/ui/Card"
 import { WatermarkedImage } from "../components/ui/WatermarkedImage"
-import { useGetProductByIdQuery, useCreatePurchaseRequestMutation, useAddToCartMutation, useGetCartQuery } from "../features/api/apiSlice"
+import { useGetProductByIdQuery, useCreatePurchaseRequestMutation, useAddToCartMutation, useGetCartQuery, useCreateProductChatMutation } from "../features/api/apiSlice"
 import { useSelector } from "react-redux"
 import type { RootState } from "../store"
 import Lightbox from "yet-another-react-lightbox";
@@ -23,6 +23,7 @@ export function ProductDetails() {
   const navigate = useNavigate()
   const { data: product, isLoading, isError } = useGetProductByIdQuery(id)
   const [createPurchaseRequest] = useCreatePurchaseRequestMutation()
+  const [createProductChat] = useCreateProductChatMutation()
   const [addToCart, { isLoading: isAddingToCart }] = useAddToCartMutation()
   const { isAuthenticated, user } = useSelector((state: RootState) => state.auth)
   const { data: cartData } = useGetCartQuery(undefined, { skip: !isAuthenticated })
@@ -81,10 +82,20 @@ export function ProductDetails() {
     setShowPurchaseModal(true)
   }
 
-  const handleInterested = async () => {
+  const handleChatSeller = async () => {
+    if (!isAuthenticated) {
+      navigate("/login", { state: { from: { pathname: `/products/${id}` } } })
+      return
+    }
+    
+    if (user?.id === product?.sellerId) {
+      alert("You cannot chat with yourself!")
+      return
+    }
+
     try {
       setIsRequesting(true)
-      const res = await createPurchaseRequest({
+      const res = await createProductChat({
         productId: product?._id,
         sellerId: product?.sellerId
       }).unwrap()
@@ -92,11 +103,10 @@ export function ProductDetails() {
       if (res.conversationId) {
         setActiveConversationId(res.conversationId)
       }
-      setShowPurchaseModal(false)
       setShowChatModal(true)
     } catch (err: any) {
-      console.error("Failed to create request", err)
-      alert(err.data?.message || "Failed to send purchase request")
+      console.error("Failed to create chat", err)
+      alert(err.data?.message || "Failed to start chat")
     } finally {
       setIsRequesting(false)
     }
@@ -371,26 +381,12 @@ export function ProductDetails() {
                 <div className="flex gap-4">
                   <Button 
                     size="lg" 
-                    className="flex-1 rounded-2xl gap-2 bg-[#25D366] hover:bg-[#1DA851] text-white border-none shadow-[0_4px_14px_rgba(37,211,102,0.4)] transition-all hover:scale-[1.02]" 
-                    onClick={() => {
-                      if (!product?.whatsappNumber) {
-                        alert("Seller has not provided a WhatsApp contact.");
-                        return;
-                      }
-                      let number = product.whatsappNumber.replace(/\D/g, '');
-                      if (number.length === 10) number = `91${number}`;
-                      
-                      const imageUrl = (hasImages && product.images && product.images[0]) ? getImageUrl(product.images[0]) : '';
-                      const imageSection = imageUrl ? `\n🖼 Product Image:\n${imageUrl}\n` : '';
-                      
-                      const msg = `Hello! 👋\n\nI found your product on UniSwap and I'm interested in buying it.\n\n📦 Product: ${product.title}\n\n💰 Price: ₹${product.price?.toLocaleString('en-IN')}\n${imageSection}\nCould you please let me know if it is still available?`;
-                      window.open(`https://wa.me/${number}?text=${encodeURIComponent(msg)}`, '_blank');
-                    }}
+                    className="flex-1 rounded-2xl gap-2 bg-[#6C3BFF] hover:bg-[#8B5CF6] text-white border-none shadow-[0_4px_14px_rgba(108,59,255,0.4)] transition-all hover:scale-[1.02]" 
+                    onClick={handleChatSeller}
+                    disabled={isRequesting}
                   >
-                    <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
-                      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z"/>
-                    </svg>
-                    WhatsApp Seller
+                    {isRequesting ? <Loader2 className="w-5 h-5 animate-spin" /> : <MessageCircle className="w-5 h-5" />}
+                    {isRequesting ? "Starting Chat..." : "Chat Seller"}
                   </Button>
                 </div>
               </>
@@ -521,20 +517,19 @@ export function ProductDetails() {
               </p>
 
               <div className="flex flex-col gap-2 w-full">
-                <Button 
-                  size="lg" 
-                  className="w-full rounded-[14px] bg-primary-600 hover:bg-primary-500 text-white font-bold h-12 text-base border-none shadow-[0_0_20px_rgba(108,59,255,0.3)] transition-all transform hover:scale-[1.01]"
-                  onClick={handleInterested}
-                  disabled={isRequesting}
-                >
-                  {isRequesting ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : "🟣 Interested"}
-                </Button>
+                  <Button 
+                    size="lg" 
+                    className="w-full rounded-[14px] bg-primary-600 hover:bg-primary-500 text-white font-bold h-12 text-base border-none shadow-[0_0_20px_rgba(108,59,255,0.3)] transition-all transform hover:scale-[1.01]"
+                    onClick={() => { setShowPurchaseModal(false); handleChatSeller(); }}
+                    disabled={isRequesting}
+                  >
+                    {isRequesting ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : "🟣 Chat Seller"}
+                  </Button>
                 <Button 
                   size="lg" 
                   variant="outline"
                   className="w-full rounded-[14px] bg-[#1A1A1A] hover:bg-[#252525] text-white border-white/10 h-12 text-base transition-all"
                   onClick={() => setShowPurchaseModal(false)}
-                  disabled={isRequesting}
                 >
                   ⚪ Not Interested
                 </Button>

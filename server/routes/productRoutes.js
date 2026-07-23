@@ -11,17 +11,13 @@ const authMiddleware = require('../middleware/authMiddleware');
 const inMemoryProducts = [];
 let idCounter = 1;
 
-// Configure Multer for local storage
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, 'uploads/')
-  },
-  filename: function (req, file, cb) {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9)
-    cb(null, uniqueSuffix + path.extname(file.originalname))
-  }
+const { productStorage } = require('../config/cloudinary');
+
+// Configure Multer for Cloudinary storage
+const upload = multer({ 
+  storage: productStorage,
+  limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
 });
-const upload = multer({ storage: storage });
 
 // GET all active products (with dynamic filtering)
 router.get('/', async (req, res) => {
@@ -195,31 +191,27 @@ router.get('/:id', async (req, res) => {
 // POST a new product
 router.post('/', authMiddleware, upload.array('images', 5), async (req, res) => {
   try {
+    console.log('\n--- [PIPELINE DEBUG] START PRODUCT UPLOAD ---');
+    console.log('1. Incoming multipart request. Body keys:', Object.keys(req.body));
+    console.log('2. Multer parsed files:', req.files ? req.files.map(f => ({ originalname: f.originalname, mimetype: f.mimetype, size: f.size, path: f.path })) : 'None');
+    
     const { title, description, category, price, condition, college, whatsappNumber } = req.body;
     
     if (!whatsappNumber || !/^\d{10}$/.test(whatsappNumber)) {
       return res.status(400).json({ message: "A valid 10-digit WhatsApp number is required." });
     }
 
-    // Construct image URLs based on the server host
-    const imagePaths = req.files ? req.files.map(file => `/uploads/${file.filename}`) : [];
+    // Extract Cloudinary secure URLs from req.files
+    const imagePaths = req.files ? req.files.map(file => file.path) : [];
+    console.log('3. Cloudinary upload response embedded in req.files (path field).');
+    console.log('4. URLs returned by Cloudinary:', imagePaths);
+    
+    if (imagePaths.length === 0) {
+      console.error('[UPLOAD ERROR] Image upload failed or no images provided.');
+      return res.status(400).json({ message: "Product image upload failed or is missing." });
+    }
 
     const user = await User.findById(req.user.userId);
-
-    if (mongoose.connection.readyState !== 1) {
-      // Fallback
-      const newProduct = {
-        _id: String(idCounter++),
-        title, description, category, price: Number(price), condition, college, whatsappNumber,
-        images: imagePaths,
-        status: 'active',
-        sellerId: req.user.userId,
-        sellerName: user ? user.name : 'Anonymous Student',
-        createdAt: new Date()
-      };
-      inMemoryProducts.push(newProduct);
-      return res.status(201).json(newProduct);
-    }
 
     const newProduct = new Product({
       title,
@@ -233,10 +225,17 @@ router.post('/', authMiddleware, upload.array('images', 5), async (req, res) => 
       sellerId: req.user.userId,
       sellerName: user ? user.name : 'Anonymous Student',
     });
+    
+    console.log('5. MongoDB document before save:', { title: newProduct.title, images: newProduct.images });
 
     const savedProduct = await newProduct.save();
+    console.log('6. MongoDB document after save:', { _id: savedProduct._id, images: savedProduct.images });
+    
+    console.log('7. API response sent to frontend:', { _id: savedProduct._id, images: savedProduct.images });
+    console.log('--- [PIPELINE DEBUG] END PRODUCT UPLOAD ---\n');
     res.status(201).json(savedProduct);
   } catch (err) {
+    console.error('[UPLOAD ERROR]', err);
     res.status(400).json({ message: err.message });
   }
 });

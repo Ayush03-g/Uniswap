@@ -7,6 +7,7 @@ const userSchema = new mongoose.Schema({
   profilePicture: { type: String, default: '' },
   role: { type: String, enum: ['USER', 'ADMIN'], default: 'USER' },
   status: { type: String, enum: ['ACTIVE', 'SUSPENDED', 'BANNED'], default: 'ACTIVE' },
+  lastSeen: { type: Date, default: Date.now },
   emailVerified: { type: Boolean, default: true },
   college: { type: String },
   course: { type: String },

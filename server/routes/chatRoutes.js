@@ -10,41 +10,60 @@ router.get('/', auth, async (req, res) => {
   try {
     const conversations = await Conversation.find({
       $or: [{ buyerId: req.user.userId }, { sellerId: req.user.userId }]
-    }).populate('buyerId', 'name email').populate('sellerId', 'name email').populate('productId', 'title images price category condition').sort('-lastMessageTime');
+    })
+      .populate('buyerId', 'name email profilePicture lastSeen')
+      .populate('sellerId', 'name email profilePicture lastSeen')
+      .populate('productId', 'title images price category condition')
+      .sort('-lastMessageTime');
     
-    res.json(conversations);
+    // Calculate per-user unread counts dynamically for accuracy if needed
+    const formattedConvs = await Promise.all(conversations.map(async (conv) => {
+      const isBuyer = conv.buyerId._id.toString() === req.user.userId;
+      const unread = await Message.countDocuments({
+        conversationId: conv._id,
+        receiverId: req.user.userId,
+        read: false
+      });
+      return {
+        ...conv.toObject(),
+        myUnreadCount: unread
+      };
+    }));
+
+    res.json(formattedConvs);
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Server error fetching conversations' });
   }
 });
 
-// @route POST /api/chat/direct
-// @desc Create or get a direct conversation with another user
-router.post('/direct', auth, async (req, res) => {
+// @route POST /api/chat/product
+// @desc Create or get a product-based conversation
+router.post('/product', auth, async (req, res) => {
   try {
-    const { receiverId } = req.body;
-    if (!receiverId || receiverId === req.user.userId) {
-      return res.status(400).json({ message: 'Invalid receiver ID' });
+    const { productId, sellerId } = req.body;
+    if (!productId || !sellerId || sellerId === req.user.userId) {
+      return res.status(400).json({ message: 'Invalid product or seller ID, or you are the seller.' });
     }
 
     let conversation = await Conversation.findOne({
-      type: 'DIRECT_CHAT',
-      $or: [
-        { buyerId: req.user.userId, sellerId: receiverId },
-        { buyerId: receiverId, sellerId: req.user.userId }
-      ]
+      productId: productId,
+      buyerId: req.user.userId,
+      sellerId: sellerId
     });
 
     let isNew = false;
     if (!conversation) {
       conversation = new Conversation({
         buyerId: req.user.userId,
-        sellerId: receiverId,
-        type: 'DIRECT_CHAT',
-        lastMessage: "👋 Hello! I'd like to connect with you through UniSwap.",
+        sellerId: sellerId,
+        productId: productId,
+        type: 'PRODUCT_CHAT',
+        lastMessage: "👋 Hello! I'm interested in your product.",
         lastMessageTime: Date.now(),
-        unreadCount: 1
+        lastActivity: Date.now(),
+        sellerUnread: 1,
+        buyerUnread: 0
       });
       await conversation.save();
       isNew = true;
@@ -52,19 +71,24 @@ router.post('/direct', auth, async (req, res) => {
       const msg = new Message({
         conversationId: conversation._id,
         senderId: req.user.userId,
-        text: "👋 Hello! I'd like to connect with you through UniSwap.",
+        receiverId: sellerId,
+        productId: productId,
+        text: "👋 Hello! I'm interested in your product.",
       });
       await msg.save();
       
       const User = require('../models/User');
       const sender = await User.findById(req.user.userId);
+      const Product = require('../models/Product');
+      const product = await Product.findById(productId);
       
       const Notification = require('../models/Notification');
       const notif = new Notification({
-         userId: receiverId,
+         userId: sellerId,
          type: 'message',
-         title: '💬 New Message',
-         message: `${sender?.name || 'Someone'} started a conversation with you.`,
+         title: '💬 New Inquiry',
+         message: `${sender?.name || 'Someone'} is interested in ${product?.title}.`,
+         relatedId: conversation._id,
          read: false
       });
       await notif.save();
@@ -122,7 +146,13 @@ router.post('/', auth, async (req, res) => {
     // Update conversation
     conversation.lastMessage = text;
     conversation.lastMessageTime = Date.now();
-    conversation.unreadCount = (conversation.unreadCount || 0) + 1;
+    conversation.lastActivity = Date.now();
+    
+    if (isBuyer) {
+      conversation.sellerUnread = (conversation.sellerUnread || 0) + 1;
+    } else {
+      conversation.buyerUnread = (conversation.buyerUnread || 0) + 1;
+    }
     await conversation.save();
     
     // Create Notification for receiver
@@ -131,7 +161,8 @@ router.post('/', auth, async (req, res) => {
       userId: receiverId,
       type: 'message',
       relatedId: conversationId,
-      message: `New message regarding: ${conversation.productId.title}`
+      title: `New Message from ${req.user.name || 'User'}`,
+      message: text.substring(0, 50) + (text.length > 50 ? '...' : '')
     });
     await notification.save();
 
@@ -158,11 +189,16 @@ router.put('/read/:id', auth, async (req, res) => {
     const conversation = await Conversation.findById(conversationId);
     
     if (conversation && (conversation.buyerId.toString() === req.user.userId || conversation.sellerId.toString() === req.user.userId)) {
-      conversation.unreadCount = 0;
+      if (conversation.buyerId.toString() === req.user.userId) {
+        conversation.buyerUnread = 0;
+      } else {
+        conversation.sellerUnread = 0;
+      }
       await conversation.save();
+      
       await Message.updateMany(
         { conversationId, receiverId: req.user.userId, read: false },
-        { $set: { read: true } }
+        { $set: { read: true, readAt: Date.now() } }
       );
       res.json({ success: true });
     } else {

@@ -57,13 +57,6 @@ app.use(cors({
 }));
 
 app.use(express.json());
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
-
-// Ensure uploads directory exists
-const uploadsDir = path.join(__dirname, 'uploads');
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir);
-}
 
 const authRoutes = require('./routes/authRoutes');
 
@@ -139,19 +132,52 @@ io.on('connection', (socket) => {
   const queryUserId = socket.handshake.query.userId;
   if (queryUserId) {
     connectedUsers.set(queryUserId, socket.id);
+    io.emit('user_online', queryUserId); // Broadcast online status
     console.log(`User ${queryUserId} registered via query with socket ${socket.id}`);
   }
 
   socket.on('register', (userId) => {
     connectedUsers.set(userId, socket.id);
+    io.emit('user_online', userId);
     console.log(`User ${userId} registered via emit with socket ${socket.id}`);
   });
 
-  socket.on('disconnect', () => {
+  socket.on('typing', ({ conversationId, receiverId }) => {
+    const receiverSocketId = connectedUsers.get(receiverId);
+    if (receiverSocketId) {
+      io.to(receiverSocketId).emit('typing', { conversationId });
+    }
+  });
+
+  socket.on('stop_typing', ({ conversationId, receiverId }) => {
+    const receiverSocketId = connectedUsers.get(receiverId);
+    if (receiverSocketId) {
+      io.to(receiverSocketId).emit('stop_typing', { conversationId });
+    }
+  });
+  
+  socket.on('mark_read', ({ conversationId, messageIds, senderId }) => {
+    // When receiver reads, notify sender to update UI to 'Seen'
+    const senderSocketId = connectedUsers.get(senderId);
+    if (senderSocketId) {
+      io.to(senderSocketId).emit('messages_read', { conversationId, messageIds });
+    }
+  });
+
+  socket.on('disconnect', async () => {
     console.log('User disconnected:', socket.id);
     for (let [userId, socketId] of connectedUsers.entries()) {
       if (socketId === socket.id) {
         connectedUsers.delete(userId);
+        io.emit('user_offline', userId);
+        
+        // Update last seen in DB
+        try {
+          const User = require('./models/User');
+          await User.findByIdAndUpdate(userId, { lastSeen: new Date() });
+        } catch (err) {
+          console.error('Error updating lastSeen:', err);
+        }
         break;
       }
     }

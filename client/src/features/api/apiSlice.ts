@@ -90,6 +90,13 @@ export const apiSlice = createApi({
         body: data,
       }),
     }),
+    createProductChat: builder.mutation({
+      query: (data) => ({
+        url: '/chat/product',
+        method: 'POST',
+        body: data,
+      }),
+    }),
     getMessages: builder.query({
       query: (conversationId) => `/chat/${conversationId}`,
     }),
@@ -322,6 +329,7 @@ export const {
   useGetProfileDashboardQuery,
   useUpdateProfileMutation,
   useCreateDirectChatMutation,
+  useCreateProductChatMutation,
   useChatWithAIMutation,
   useGetAdminAnalyticsQuery,
   useGetAdminUsersQuery,
