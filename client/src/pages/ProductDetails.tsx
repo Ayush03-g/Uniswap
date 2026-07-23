@@ -133,6 +133,27 @@ export function ProductDetails() {
     setShowShareModal(true);
   }
 
+  const handleWhatsAppSeller = () => {
+    if (!product?.whatsappNumber) {
+      alert("Seller has not provided a WhatsApp number.");
+      return;
+    }
+
+    const text = `Hi ${product.sellerName || "Seller"},\n\nI am interested in your product on UniSwap.\n\nProduct: ${product.title}\nPrice: ₹${product.price?.toLocaleString('en-IN')}\n\nLink: ${productUrl}`;
+    const encodedText = encodeURIComponent(text);
+    
+    let phone = product.whatsappNumber.replace(/\D/g, '');
+    if (phone.length === 10) phone = `91${phone}`;
+
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    
+    if (isMobile) {
+      window.location.href = `whatsapp://send?phone=${phone}&text=${encodedText}`;
+    } else {
+      window.open(`https://web.whatsapp.com/send?phone=${phone}&text=${encodedText}`, '_blank');
+    }
+  };
+
   const triggerToast = () => {
     setShowToast(true);
     setTimeout(() => setShowToast(false), 3000);
@@ -387,6 +408,16 @@ export function ProductDetails() {
                   >
                     {isRequesting ? <Loader2 className="w-5 h-5 animate-spin" /> : <MessageCircle className="w-5 h-5" />}
                     {isRequesting ? "Starting Chat..." : "Chat Seller"}
+                  </Button>
+                  <Button 
+                    size="lg" 
+                    className="flex-1 rounded-2xl gap-2 bg-[#25D366] hover:bg-[#128C7E] text-white border-none shadow-[0_4px_14px_rgba(37,211,102,0.4)] transition-all hover:scale-[1.02] disabled:bg-gray-400 disabled:shadow-none" 
+                    onClick={handleWhatsAppSeller}
+                    disabled={!product.whatsappNumber}
+                    title={!product.whatsappNumber ? "Seller has not provided a WhatsApp number." : "Contact on WhatsApp"}
+                  >
+                    <MessageCircle className="w-5 h-5" />
+                    WhatsApp Seller
                   </Button>
                 </div>
               </>
